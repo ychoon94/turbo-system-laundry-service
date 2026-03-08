@@ -1,0 +1,55 @@
+import { v } from "convex/values";
+
+export const HOLD_TTL_MS = 20 * 60 * 1000;
+export const DEFAULT_CURRENCY = "SGD";
+export const DEFAULT_TIMEZONE = "Asia/Singapore";
+export const DEFAULT_PRICE_PER_LOAD = 18.5;
+
+export const userRoleValidator = v.union(
+  v.literal("customer"),
+  v.literal("worker"),
+  v.literal("driver"),
+  v.literal("admin"),
+);
+
+export const userStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("inactive"),
+);
+
+export const slotTypeValidator = v.union(
+  v.literal("dropoff"),
+  v.literal("delivery"),
+);
+
+export const slotStatusValidator = v.union(
+  v.literal("open"),
+  v.literal("closed"),
+  v.literal("full"),
+);
+
+export const serviceTypeValidator = v.literal("self_dropoff");
+
+export const orderStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("awaiting_payment"),
+  v.literal("paid"),
+  v.literal("awaiting_dropoff"),
+);
+
+export const paymentStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("paid"),
+  v.literal("failed"),
+);
+
+export const changeSourceValidator = v.union(
+  v.literal("customer"),
+  v.literal("system"),
+  v.literal("webhook"),
+);
+
+export function buildOrderNumber(now: number) {
+  const compactDate = new Date(now).toISOString().slice(0, 10).replaceAll("-", "");
+  return `TT-${compactDate}-${String(now).slice(-6)}`;
+}

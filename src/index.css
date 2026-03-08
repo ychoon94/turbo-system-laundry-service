@@ -1,0 +1,185 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --background: hsl(35 45% 96%);
+  --foreground: hsl(184 43% 15%);
+  --card: hsl(39 53% 98%);
+  --card-foreground: hsl(184 43% 15%);
+  --popover: hsl(39 53% 98%);
+  --popover-foreground: hsl(184 43% 15%);
+  --primary: hsl(184 49% 23%);
+  --primary-foreground: hsl(36 57% 97%);
+  --secondary: hsl(27 66% 88%);
+  --secondary-foreground: hsl(184 43% 15%);
+  --muted: hsl(36 35% 92%);
+  --muted-foreground: hsl(184 16% 34%);
+  --accent: hsl(15 68% 57%);
+  --accent-foreground: hsl(36 57% 97%);
+  --destructive: hsl(4 67% 53%);
+  --destructive-foreground: hsl(36 57% 97%);
+  --border: hsl(184 18% 76%);
+  --input: hsl(39 47% 99%);
+  --ring: hsl(184 49% 23%);
+  --radius: 1.25rem;
+}
+
+.dark {
+  --background: hsl(184 31% 10%);
+  --foreground: hsl(39 46% 96%);
+  --card: hsl(184 26% 14%);
+  --card-foreground: hsl(39 46% 96%);
+  --popover: hsl(184 26% 14%);
+  --popover-foreground: hsl(39 46% 96%);
+  --primary: hsl(28 79% 68%);
+  --primary-foreground: hsl(184 31% 10%);
+  --secondary: hsl(184 18% 22%);
+  --secondary-foreground: hsl(39 46% 96%);
+  --muted: hsl(184 18% 17%);
+  --muted-foreground: hsl(39 22% 72%);
+  --accent: hsl(15 73% 61%);
+  --accent-foreground: hsl(184 31% 10%);
+  --destructive: hsl(4 78% 63%);
+  --destructive-foreground: hsl(39 46% 96%);
+  --border: hsl(184 14% 30%);
+  --input: hsl(184 16% 18%);
+  --ring: hsl(28 79% 68%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.75rem);
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --animate-drift: drift 14s ease-in-out infinite;
+  --animate-fade-up: fade-up 600ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(0, -12px, 0) scale(1.02);
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 16px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--background);
+    color: var(--foreground);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--background);
+    color: var(--foreground);
+    background-image:
+      radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--secondary) 68%, transparent) 0, transparent 38%),
+      radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--accent) 22%, transparent) 0, transparent 30%),
+      linear-gradient(180deg, color-mix(in srgb, var(--background) 96%, white) 0%, var(--background) 100%);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    font-family: var(--font-display);
+    letter-spacing: -0.04em;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 55%, white);
+    color: var(--foreground);
+  }
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.fabric-noise {
+  position: relative;
+}
+
+.fabric-noise::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, transparent 35%),
+    repeating-linear-gradient(
+      120deg,
+      rgba(15, 45, 42, 0.04) 0,
+      rgba(15, 45, 42, 0.04) 1px,
+      transparent 1px,
+      transparent 11px
+    );
+  content: "";
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
