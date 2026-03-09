@@ -1,14 +1,14 @@
 import { ConvexError, v } from "convex/values";
-import type { MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getCurrentUserOrThrow } from "./lib/auth";
+import { HOLD_TTL_MS, buildOrderNumber } from "./lib/domain";
 import { appendOrderHistory } from "./lib/orderHistory";
-import { buildOrderNumber } from "./lib/domain";
-import {
-  calculateOrderTotals,
-  hasSufficientCapacity,
-} from "./lib/orderRules";
+import { isHoldActive } from "./lib/orderRules";
+import { calculateOrderTotals } from "./lib/orderRules";
+import { getRemainingLoads } from "./lib/orderRules";
+import { reserveOrderSlots } from "./lib/slotReservations";
 
 const slotInfoValidator = v.object({
   slotId: v.id("timeSlots"),
@@ -28,6 +28,63 @@ const addressInfoValidator = v.object({
   unitNumber: v.optional(v.string()),
   lobbyOrSecurityNote: v.string(),
 });
+
+const reorderDefaultsValidator = v.object({
+  orderId: v.id("orders"),
+  addressId: v.optional(v.id("addresses")),
+  loadCount: v.number(),
+  specialInstructions: v.optional(v.string()),
+  dropoffSlotId: v.optional(v.id("timeSlots")),
+  deliverySlotId: v.optional(v.id("timeSlots")),
+  dropoffSlotReusable: v.boolean(),
+  deliverySlotReusable: v.boolean(),
+  dropoffSlotMessage: v.optional(v.string()),
+  deliverySlotMessage: v.optional(v.string()),
+});
+
+function isTerminalPaymentStatus(paymentStatus: string) {
+  return paymentStatus === "paid" || paymentStatus === "failed" || paymentStatus === "refunded";
+}
+
+function getReusableSlotState(
+  slot:
+    | {
+        _id: Id<"timeSlots">;
+        status: string;
+        capacityLoads: number;
+        reservedLoads?: number;
+      }
+    | null,
+  loadCount: number,
+  label: string,
+) {
+  if (!slot) {
+    return {
+      reusable: false,
+      message: `The original ${label} slot is no longer available.`,
+    };
+  }
+
+  if (slot.status === "closed") {
+    return {
+      reusable: false,
+      message: `The original ${label} slot is closed. Choose a new one.`,
+    };
+  }
+
+  const remainingLoads = getRemainingLoads(slot.capacityLoads, slot.reservedLoads ?? 0);
+  if (remainingLoads < loadCount) {
+    return {
+      reusable: false,
+      message: `The original ${label} slot no longer has enough capacity.`,
+    };
+  }
+
+  return {
+    reusable: true,
+    message: undefined,
+  };
+}
 
 export const createDraftOrder = mutation({
   args: {
@@ -50,10 +107,8 @@ export const createDraftOrder = mutation({
 
     const branch = await ctx.db.get(user.branchId);
     const address = await ctx.db.get(args.addressId);
-    const dropoffSlot = await ctx.db.get(args.dropoffSlotId);
-    const deliverySlot = await ctx.db.get(args.deliverySlotId);
 
-    if (!branch || !address || !dropoffSlot || !deliverySlot) {
+    if (!branch || !address) {
       throw new ConvexError("NOT_FOUND");
     }
 
@@ -61,25 +116,16 @@ export const createDraftOrder = mutation({
       throw new ConvexError("FORBIDDEN");
     }
 
-    if (
-      dropoffSlot.slotType !== "dropoff" ||
-      deliverySlot.slotType !== "delivery" ||
-      dropoffSlot.branchId !== branch._id ||
-      deliverySlot.branchId !== branch._id
-    ) {
-      throw new ConvexError("INVALID_SLOT_SELECTION");
-    }
-
-    await assertSlotCapacity(ctx, args.dropoffSlotId, "dropoff", args.loadCount, now);
-    await assertSlotCapacity(
-      ctx,
-      args.deliverySlotId,
-      "delivery",
-      args.loadCount,
-      now,
-    );
+    await reserveOrderSlots(ctx, {
+      branchId: branch._id,
+      dropoffSlotId: args.dropoffSlotId,
+      deliverySlotId: args.deliverySlotId,
+      loadCount: args.loadCount,
+      updatedAt: now,
+    });
 
     const totals = calculateOrderTotals(args.loadCount, branch.pricePerLoad);
+    const holdExpiresAt = now + HOLD_TTL_MS;
     const orderId = await ctx.db.insert("orders", {
       orderNumber: buildOrderNumber(now),
       customerId: user._id,
@@ -96,7 +142,7 @@ export const createDraftOrder = mutation({
       specialInstructions: args.specialInstructions,
       currentStatus: "draft",
       paymentStatus: "pending",
-      holdExpiresAt: now + 20 * 60 * 1000,
+      holdExpiresAt,
       createdAt: now,
       updatedAt: now,
     });
@@ -108,6 +154,12 @@ export const createDraftOrder = mutation({
       createdAt: now,
       notes: "Draft order created with a timed slot hold.",
     });
+
+    await ctx.scheduler.runAfter(
+      HOLD_TTL_MS,
+      internal.payments.releaseExpiredHold,
+      { orderId },
+    );
 
     return { orderId };
   },
@@ -124,6 +176,7 @@ export const getMyOrders = query({
       totalAmount: v.number(),
       currency: v.string(),
       holdExpired: v.boolean(),
+      holdExpiresAt: v.optional(v.number()),
       dropoffSlot: slotInfoValidator,
       deliverySlot: slotInfoValidator,
     }),
@@ -133,7 +186,7 @@ export const getMyOrders = query({
     const now = Date.now();
     const orders = await ctx.db
       .query("orders")
-      .withIndex("by_customer", (query) => query.eq("customerId", user._id))
+      .withIndex("by_customer", (db) => db.eq("customerId", user._id))
       .order("desc")
       .collect();
 
@@ -154,9 +207,9 @@ export const getMyOrders = query({
           totalAmount: order.totalAmount,
           currency: order.currency,
           holdExpired:
-            typeof order.holdExpiresAt === "number" &&
-            order.paymentStatus !== "paid" &&
-            order.holdExpiresAt <= now,
+            !isHoldActive(order.holdExpiresAt, now) &&
+            !isTerminalPaymentStatus(order.paymentStatus),
+          holdExpiresAt: order.holdExpiresAt,
           dropoffSlot: {
             slotId: dropoffSlot._id,
             date: dropoffSlot.date,
@@ -188,7 +241,9 @@ export const getMyOrderDetail = query({
     totalAmount: v.number(),
     currency: v.string(),
     holdExpired: v.boolean(),
+    holdExpiresAt: v.optional(v.number()),
     specialInstructions: v.optional(v.string()),
+    paymentSessionId: v.optional(v.string()),
     dropoffSlot: slotInfoValidator,
     deliverySlot: slotInfoValidator,
     address: addressInfoValidator,
@@ -220,7 +275,7 @@ export const getMyOrderDetail = query({
       ctx.db.get(order.addressId),
       ctx.db
         .query("orderStatusHistory")
-        .withIndex("by_order", (query) => query.eq("orderId", order._id))
+        .withIndex("by_order", (db) => db.eq("orderId", order._id))
         .order("desc")
         .collect(),
     ]);
@@ -238,10 +293,11 @@ export const getMyOrderDetail = query({
       totalAmount: order.totalAmount,
       currency: order.currency,
       holdExpired:
-        typeof order.holdExpiresAt === "number" &&
-        order.paymentStatus !== "paid" &&
-        order.holdExpiresAt <= now,
+        !isHoldActive(order.holdExpiresAt, now) &&
+        !isTerminalPaymentStatus(order.paymentStatus),
+      holdExpiresAt: order.holdExpiresAt,
       specialInstructions: order.specialInstructions,
+      paymentSessionId: order.paymentSessionId,
       dropoffSlot: {
         slotId: dropoffSlot._id,
         date: dropoffSlot.date,
@@ -275,33 +331,47 @@ export const getMyOrderDetail = query({
   },
 });
 
-async function assertSlotCapacity(
-  ctx: MutationCtx,
-  slotId: Id<"timeSlots">,
-  slotKey: "dropoff" | "delivery",
-  requiredLoads: number,
-  now: number,
-) {
-  const slot = await ctx.db.get(slotId);
-  if (!slot) {
-    throw new ConvexError("SLOT_NOT_FOUND");
-  }
+export const getReorderDefaults = query({
+  args: {
+    orderId: v.id("orders"),
+  },
+  returns: v.union(v.null(), reorderDefaultsValidator),
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUserOrThrow(ctx);
+    const order = await ctx.db.get(args.orderId);
 
-  const matchingOrders = await ctx.db
-    .query("orders")
-    .withIndex(
-      slotKey === "dropoff" ? "by_dropoff_slot" : "by_delivery_slot",
-      (query) =>
-        query.eq(
-          slotKey === "dropoff" ? "dropoffSlotId" : "deliverySlotId",
-          slot._id,
-        ),
-    )
-    .collect();
+    if (!order) {
+      throw new ConvexError("NOT_FOUND");
+    }
 
-  if (
-    !hasSufficientCapacity(slot.capacityLoads, matchingOrders, requiredLoads, now)
-  ) {
-    throw new ConvexError("SLOT_FULL");
-  }
-}
+    if (order.customerId !== user._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    if (order.currentStatus !== "cancelled" || !["failed", "refunded"].includes(order.paymentStatus)) {
+      return null;
+    }
+
+    const [address, dropoffSlot, deliverySlot] = await Promise.all([
+      ctx.db.get(order.addressId),
+      ctx.db.get(order.dropoffSlotId),
+      ctx.db.get(order.deliverySlotId),
+    ]);
+
+    const dropoffState = getReusableSlotState(dropoffSlot, order.loadCount, "drop-off");
+    const deliveryState = getReusableSlotState(deliverySlot, order.loadCount, "delivery");
+
+    return {
+      orderId: order._id,
+      addressId: address?._id,
+      loadCount: order.loadCount,
+      specialInstructions: order.specialInstructions,
+      dropoffSlotId: dropoffState.reusable ? order.dropoffSlotId : undefined,
+      deliverySlotId: deliveryState.reusable ? order.deliverySlotId : undefined,
+      dropoffSlotReusable: dropoffState.reusable,
+      deliverySlotReusable: deliveryState.reusable,
+      dropoffSlotMessage: dropoffState.message,
+      deliverySlotMessage: deliveryState.message,
+    };
+  },
+});

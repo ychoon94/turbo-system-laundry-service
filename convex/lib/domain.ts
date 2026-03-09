@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-export const HOLD_TTL_MS = 20 * 60 * 1000;
+export const HOLD_TTL_MS = 30 * 60 * 1000;
 export const DEFAULT_CURRENCY = "SGD";
 export const DEFAULT_TIMEZONE = "Asia/Singapore";
 export const DEFAULT_PRICE_PER_LOAD = 18.5;
@@ -35,12 +35,19 @@ export const orderStatusValidator = v.union(
   v.literal("awaiting_payment"),
   v.literal("paid"),
   v.literal("awaiting_dropoff"),
+  v.literal("cancelled"),
 );
 
 export const paymentStatusValidator = v.union(
   v.literal("pending"),
   v.literal("paid"),
   v.literal("failed"),
+  v.literal("refunded"),
+);
+
+export const paymentProviderValidator = v.union(
+  v.literal("stripe"),
+  v.literal("mock_stripe"),
 );
 
 export const changeSourceValidator = v.union(

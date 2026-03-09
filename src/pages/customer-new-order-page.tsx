@@ -4,8 +4,8 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "convex/react";
+import { Link, useSearch } from "@tanstack/react-router";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { CalendarDays, PackageCheck, ReceiptText } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -18,6 +18,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
 import { formatCurrency, formatSlotLabel } from "@/lib/format";
 
+type OrderFormDefaults = {
+  loadCount: number;
+  addressId: Id<"addresses"> | "";
+  dropoffSlotId: Id<"timeSlots"> | "";
+  deliverySlotId: Id<"timeSlots"> | "";
+  specialInstructions: string;
+};
+
+const EMPTY_ORDER_FORM_DEFAULTS: OrderFormDefaults = {
+  loadCount: 2,
+  addressId: "",
+  dropoffSlotId: "",
+  deliverySlotId: "",
+  specialInstructions: "",
+};
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -29,54 +45,16 @@ function isoDate(date: Date) {
 }
 
 export function CustomerNewOrderPage() {
-  const navigate = useNavigate();
+  const search = useSearch({ from: "/customer/new-order" });
   const profile = useQuery(api.auth.getCurrentUserProfile, {});
   const addresses = useQuery(api.addresses.listMyAddresses, {});
-  const createDraftOrder = useMutation(api.orders.createDraftOrder);
-  const createCheckoutSession = useMutation(api.payments.createCheckoutSession);
-
-  const [loadCount, setLoadCount] = useState(2);
-  const [addressId, setAddressId] = useState<Id<"addresses"> | "">("");
-  const [dropoffSlotId, setDropoffSlotId] = useState<Id<"timeSlots"> | "">("");
-  const [deliverySlotId, setDeliverySlotId] = useState<Id<"timeSlots"> | "">("");
-  const [specialInstructions, setSpecialInstructions] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  const deferredLoadCount = useDeferredValue(loadCount);
-  const dateRange = useMemo(() => {
-    const start = new Date();
-    return {
-      dateFrom: isoDate(start),
-      dateTo: isoDate(addDays(start, 6)),
-    };
-  }, []);
-
-  const slotArgs =
-    profile?.defaultBranchId && deferredLoadCount > 0
-      ? {
-          branchId: profile.defaultBranchId,
-          dateFrom: dateRange.dateFrom,
-          dateTo: dateRange.dateTo,
-          requiredLoads: deferredLoadCount,
-        }
-      : "skip";
-
-  const dropoffSlots = useQuery(
-    api.slots.listAvailableSlots,
-    slotArgs === "skip" ? "skip" : { ...slotArgs, slotType: "dropoff" },
+  const reorderDefaults = useQuery(
+    api.orders.getReorderDefaults,
+    search.reorderFrom
+      ? { orderId: search.reorderFrom as Id<"orders"> }
+      : "skip",
   );
-  const deliverySlots = useQuery(
-    api.slots.listAvailableSlots,
-    slotArgs === "skip" ? "skip" : { ...slotArgs, slotType: "delivery" },
-  );
-  const isLoadingSlots =
-    slotArgs !== "skip" &&
-    (dropoffSlots === undefined || deliverySlots === undefined);
-  const availableDropoffSlots = dropoffSlots ?? [];
-  const availableDeliverySlots = deliverySlots ?? [];
-
-  const estimatedTotal = profile ? profile.pricePerLoad * loadCount : 0;
+  const isReorderFlow = Boolean(search.reorderFrom);
 
   if (profile === undefined || addresses === undefined) {
     return (
@@ -108,7 +86,7 @@ export function CustomerNewOrderPage() {
         <PageIntro
           eyebrow="New order"
           title="The order form is ready once your address book is."
-          description="Phase 1 assumes the customer has at least one saved delivery address because the draft order stores the chosen lobby handoff record directly."
+          description="The customer checkout flow assumes at least one saved delivery address because the order stores the chosen lobby handoff record directly."
           actions={
             <Link
               to="/customer/profile"
@@ -122,12 +100,127 @@ export function CustomerNewOrderPage() {
     );
   }
 
+  const initialValues =
+    reorderDefaults === undefined || reorderDefaults === null
+      ? EMPTY_ORDER_FORM_DEFAULTS
+      : {
+          loadCount: reorderDefaults.loadCount,
+          addressId: (reorderDefaults.addressId ?? "") as Id<"addresses"> | "",
+          dropoffSlotId: (reorderDefaults.dropoffSlotId ?? "") as
+            | Id<"timeSlots">
+            | "",
+          deliverySlotId: (reorderDefaults.deliverySlotId ?? "") as
+            | Id<"timeSlots">
+            | "",
+          specialInstructions: reorderDefaults.specialInstructions ?? "",
+        };
+  const formKey = isReorderFlow
+    ? `reorder:${search.reorderFrom}:${reorderDefaults === undefined ? "loading" : "ready"}`
+    : "new-order";
+
+  return (
+    <NewOrderForm
+      key={formKey}
+      profile={profile}
+      addresses={addresses}
+      initialValues={initialValues}
+      isReorderFlow={isReorderFlow}
+      reorderDefaults={reorderDefaults ?? null}
+    />
+  );
+}
+
+function NewOrderForm(props: {
+  profile: {
+    defaultBranchId?: Id<"branches">;
+    branchName: string;
+    pricePerLoad: number;
+    currency: string;
+  };
+  addresses: Array<{
+    _id: Id<"addresses">;
+    label: string;
+    buildingName: string;
+  }>;
+  initialValues: OrderFormDefaults;
+  isReorderFlow: boolean;
+  reorderDefaults:
+    | {
+        dropoffSlotReusable: boolean;
+        deliverySlotReusable: boolean;
+        dropoffSlotMessage?: string;
+        deliverySlotMessage?: string;
+      }
+    | null;
+}) {
+  const createDraftOrder = useMutation(api.orders.createDraftOrder);
+  const createCheckoutSession = useAction(api.payments.createCheckoutSession);
+  const [loadCount, setLoadCount] = useState(props.initialValues.loadCount);
+  const [addressId, setAddressId] = useState<Id<"addresses"> | "">(
+    props.initialValues.addressId,
+  );
+  const [dropoffSlotId, setDropoffSlotId] = useState<Id<"timeSlots"> | "">(
+    props.initialValues.dropoffSlotId,
+  );
+  const [deliverySlotId, setDeliverySlotId] = useState<Id<"timeSlots"> | "">(
+    props.initialValues.deliverySlotId,
+  );
+  const [specialInstructions, setSpecialInstructions] = useState(
+    props.initialValues.specialInstructions,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const deferredLoadCount = useDeferredValue(loadCount);
+  const dateRange = useMemo(() => {
+    const start = new Date();
+    return {
+      dateFrom: isoDate(start),
+      dateTo: isoDate(addDays(start, 6)),
+    };
+  }, []);
+
+  const slotArgs =
+    props.profile.defaultBranchId && deferredLoadCount > 0
+      ? {
+          branchId: props.profile.defaultBranchId,
+          dateFrom: dateRange.dateFrom,
+          dateTo: dateRange.dateTo,
+          requiredLoads: deferredLoadCount,
+        }
+      : "skip";
+
+  const dropoffSlots = useQuery(
+    api.slots.listAvailableSlots,
+    slotArgs === "skip" ? "skip" : { ...slotArgs, slotType: "dropoff" },
+  );
+  const deliverySlots = useQuery(
+    api.slots.listAvailableSlots,
+    slotArgs === "skip" ? "skip" : { ...slotArgs, slotType: "delivery" },
+  );
+  const isLoadingSlots =
+    slotArgs !== "skip" &&
+    (dropoffSlots === undefined || deliverySlots === undefined);
+  const availableDropoffSlots = dropoffSlots ?? [];
+  const availableDeliverySlots = deliverySlots ?? [];
+  const selectedDropoffSlotId = availableDropoffSlots.some(
+    (slot) => slot.slotId === dropoffSlotId,
+  )
+    ? dropoffSlotId
+    : "";
+  const selectedDeliverySlotId = availableDeliverySlots.some(
+    (slot) => slot.slotId === deliverySlotId,
+  )
+    ? deliverySlotId
+    : "";
+  const estimatedTotal = props.profile.pricePerLoad * loadCount;
+
   return (
     <div className="grid gap-6">
       <PageIntro
         eyebrow="New order"
-        title="Reserve capacity, then move into mock checkout."
-        description="The form creates a timed hold in load units. That hold protects both the drop-off slot and the delivery slot while the customer finishes payment."
+        title="Reserve capacity, then move into hosted Stripe checkout."
+        description="The form creates a timed hold in load units. That reservation protects both the drop-off slot and the delivery slot while the customer completes a secure payment session."
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -139,7 +232,7 @@ export function CustomerNewOrderPage() {
 
             startTransition(async () => {
               try {
-                if (!addressId || !dropoffSlotId || !deliverySlotId) {
+                if (!addressId || !selectedDropoffSlotId || !selectedDeliverySlotId) {
                   setError("Choose an address, a drop-off slot, and a delivery slot.");
                   return;
                 }
@@ -147,31 +240,52 @@ export function CustomerNewOrderPage() {
                 const order = await createDraftOrder({
                   addressId,
                   loadCount,
-                  dropoffSlotId,
-                  deliverySlotId,
+                  dropoffSlotId: selectedDropoffSlotId,
+                  deliverySlotId: selectedDeliverySlotId,
                   specialInstructions: specialInstructions || undefined,
                 });
 
                 const session = await createCheckoutSession({
                   orderId: order.orderId,
+                  origin: window.location.origin,
                 });
 
-                await navigate({
-                  to: "/customer/orders/$orderId",
-                  params: { orderId: order.orderId },
-                  search: { checkout: session.sessionId },
-                });
+                window.location.assign(session.checkoutUrl);
               } catch (submissionError) {
                 setError(
                   submissionError instanceof Error
                     ? submissionError.message
-                    : "Unable to create your draft order.",
+                    : "Unable to start Stripe checkout.",
                 );
               }
             });
           }}
         >
           <div className="grid gap-6">
+            {props.isReorderFlow && props.reorderDefaults ? (
+              <div className="rounded-[1.75rem] border border-primary/20 bg-primary/8 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                  Reorder draft
+                </p>
+                <p className="mt-3 text-sm leading-6 text-foreground">
+                  This form was prefilled from the cancelled order. Available
+                  slots were reused where capacity still exists.
+                </p>
+                {!props.reorderDefaults.dropoffSlotReusable &&
+                props.reorderDefaults.dropoffSlotMessage ? (
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {props.reorderDefaults.dropoffSlotMessage}
+                  </p>
+                ) : null}
+                {!props.reorderDefaults.deliverySlotReusable &&
+                props.reorderDefaults.deliverySlotMessage ? (
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {props.reorderDefaults.deliverySlotMessage}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             <section className="grid gap-4">
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-primary/10 p-2 text-primary">
@@ -182,7 +296,7 @@ export function CustomerNewOrderPage() {
                     Order details
                   </p>
                   <h2 className="mt-1 text-3xl text-foreground">
-                    Service is fixed to self drop-off for Phase 1.
+                    Service is fixed to self drop-off in the customer phase.
                   </h2>
                 </div>
               </div>
@@ -218,9 +332,9 @@ export function CustomerNewOrderPage() {
                     required
                   >
                     <option value="">Choose a saved address</option>
-                    {addresses.map((address) => (
+                    {props.addresses.map((address) => (
                       <option key={address._id} value={address._id}>
-                        {address.label} · {address.buildingName}
+                        {address.label} - {address.buildingName}
                       </option>
                     ))}
                   </Select>
@@ -283,7 +397,7 @@ export function CustomerNewOrderPage() {
                     </span>
                     <Select
                       name="dropoffSlotId"
-                      value={dropoffSlotId}
+                      value={selectedDropoffSlotId}
                       onChange={(event) =>
                         setDropoffSlotId(event.target.value as Id<"timeSlots">)
                       }
@@ -292,7 +406,7 @@ export function CustomerNewOrderPage() {
                       <option value="">Choose a drop-off slot</option>
                       {availableDropoffSlots.map((slot) => (
                         <option key={slot.slotId} value={slot.slotId}>
-                          {formatSlotLabel(slot)} · {slot.remainingLoads} loads left
+                          {formatSlotLabel(slot)} - {slot.remainingLoads} loads left
                         </option>
                       ))}
                     </Select>
@@ -303,7 +417,7 @@ export function CustomerNewOrderPage() {
                     </span>
                     <Select
                       name="deliverySlotId"
-                      value={deliverySlotId}
+                      value={selectedDeliverySlotId}
                       onChange={(event) =>
                         setDeliverySlotId(event.target.value as Id<"timeSlots">)
                       }
@@ -312,7 +426,7 @@ export function CustomerNewOrderPage() {
                       <option value="">Choose a delivery slot</option>
                       {availableDeliverySlots.map((slot) => (
                         <option key={slot.slotId} value={slot.slotId}>
-                          {formatSlotLabel(slot)} · {slot.remainingLoads} loads left
+                          {formatSlotLabel(slot)} - {slot.remainingLoads} loads left
                         </option>
                       ))}
                     </Select>
@@ -328,12 +442,12 @@ export function CustomerNewOrderPage() {
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Drafts hold capacity for a limited time. Mock payment happens
-                  on the next screen.
+                  Drafts hold capacity for a limited time while Stripe checkout
+                  is in progress.
                 </p>
               )}
               <Button type="submit" size="lg" disabled={isPending}>
-                {isPending ? "Creating draft order…" : "Reserve and continue"}
+                {isPending ? "Creating checkout..." : "Reserve and continue"}
               </Button>
             </div>
           </div>
@@ -357,12 +471,12 @@ export function CustomerNewOrderPage() {
               Active branch
             </p>
             <p className="mt-2 font-display text-3xl text-foreground">
-              {profile.branchName}
+              {props.profile.branchName}
             </p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {formatCurrency(profile.pricePerLoad, profile.currency)} per load.
-              Pricing is seeded for Phase 1 and stored on the order at creation
-              time.
+              {formatCurrency(props.profile.pricePerLoad, props.profile.currency)} per
+              load. Pricing is seeded for the single-branch customer phase and
+              stored on the order at creation time.
             </p>
           </div>
 
@@ -373,7 +487,7 @@ export function CustomerNewOrderPage() {
             />
             <SummaryRow
               label="Estimated total"
-              value={formatCurrency(estimatedTotal, profile.currency)}
+              value={formatCurrency(estimatedTotal, props.profile.currency)}
             />
             <SummaryRow
               label="Delivery mode"

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { useMemo } from "react";
+import { Suspense, lazy, useMemo } from "react";
 import {
   Outlet,
   RouterProvider,
@@ -11,13 +11,13 @@ import {
   redirect,
   type AnyRouter,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { z } from "zod";
 import { AppShell } from "@/components/app-shell";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { CustomerNewOrderPage } from "@/pages/customer-new-order-page";
 import { CustomerOrderDetailPage } from "@/pages/customer-order-detail-page";
 import { CustomerOrdersPage } from "@/pages/customer-orders-page";
+import { CustomerPaymentsPage } from "@/pages/customer-payments-page";
 import { CustomerProfilePage } from "@/pages/customer-profile-page";
 import { SignInPage } from "@/pages/sign-in-page";
 import { SignUpPage } from "@/pages/sign-up-page";
@@ -25,6 +25,19 @@ import {
   ensureCustomerSession,
   type RouterAuthContext,
 } from "@/lib/route-guards";
+
+const RouterDevtools =
+  import.meta.env.DEV && !import.meta.env.TEST
+    ? lazy(async () => {
+        const module = await import("@tanstack/router-devtools");
+
+        return {
+          default: function Devtools() {
+            return <module.TanStackRouterDevtools position="bottom-right" />;
+          },
+        };
+      })
+    : null;
 
 type RouterContext = {
   auth: RouterAuthContext;
@@ -96,14 +109,26 @@ const customerOrdersRoute = createRoute({
   component: CustomerOrdersPage,
 });
 
+const customerPaymentsRoute = createRoute({
+  getParentRoute: () => customerRoute,
+  path: "/payments",
+  component: CustomerPaymentsPage,
+});
+
+const customerNewOrderSearchSchema = z.object({
+  reorderFrom: z.string().optional(),
+});
+
 const customerNewOrderRoute = createRoute({
   getParentRoute: () => customerRoute,
   path: "/new-order",
+  validateSearch: (search) => customerNewOrderSearchSchema.parse(search),
   component: CustomerNewOrderPage,
 });
 
 const orderDetailSearchSchema = z.object({
-  checkout: z.string().optional(),
+  checkout: z.enum(["success", "cancelled"]).optional(),
+  sessionId: z.string().optional(),
 });
 
 const customerOrderDetailRoute = createRoute({
@@ -123,6 +148,7 @@ const routeTree = rootRoute.addChildren([
     customerIndexRoute,
     customerProfileRoute,
     customerOrdersRoute,
+    customerPaymentsRoute,
     customerNewOrderRoute,
     customerOrderDetailRoute,
   ]),
@@ -202,7 +228,11 @@ function RootLayout() {
   return (
     <>
       <Outlet />
-      <TanStackRouterDevtools position="bottom-right" />
+      {RouterDevtools ? (
+        <Suspense fallback={null}>
+          <RouterDevtools />
+        </Suspense>
+      ) : null}
     </>
   );
 }

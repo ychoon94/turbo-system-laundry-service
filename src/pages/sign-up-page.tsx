@@ -5,7 +5,7 @@ import { clerkAppearance } from "@/lib/clerk-appearance";
 export function SignUpPage() {
   return (
     <AuthPageShell
-      eyebrow="Phase 1 onboarding"
+      eyebrow="Customer onboarding"
       title="Create the account that powers your first booking."
       description="After sign-up, the app immediately provisions your customer profile, seeds the branch schedule, and prepares the address book you will reuse for future orders."
       side={[
@@ -23,7 +23,7 @@ export function SignUpPage() {
         },
         {
           title: "Customer-only scope",
-          body: "Admin, worker, and driver interfaces are intentionally deferred until the checkout baseline is stable.",
+          body: "Admin, worker, and driver interfaces are intentionally deferred while the customer checkout baseline stabilizes.",
         },
       ]}
       formFirst

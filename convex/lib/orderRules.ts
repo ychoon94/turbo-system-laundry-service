@@ -1,10 +1,3 @@
-export type ReservationOrder = {
-  currentStatus: string;
-  paymentStatus: string;
-  holdExpiresAt?: number;
-  loadCount: number;
-};
-
 export function calculateOrderTotals(loadCount: number, pricePerLoad: number) {
   const subtotalAmount = Number((loadCount * pricePerLoad).toFixed(2));
 
@@ -14,46 +7,50 @@ export function calculateOrderTotals(loadCount: number, pricePerLoad: number) {
   };
 }
 
+export function isHoldActive(holdExpiresAt: number | undefined, now: number) {
+  return typeof holdExpiresAt === "number" && holdExpiresAt > now;
+}
+
+export type ReservationOrder = {
+  currentStatus: string;
+  paymentStatus: string;
+  holdExpiresAt?: number;
+  loadCount: number;
+};
+
 export function isDraftHoldActive(order: ReservationOrder, now: number) {
   return (
     order.paymentStatus === "pending" &&
     (order.currentStatus === "draft" ||
       order.currentStatus === "awaiting_payment") &&
-    typeof order.holdExpiresAt === "number" &&
-    order.holdExpiresAt > now
+    isHoldActive(order.holdExpiresAt, now)
   );
 }
 
-export function contributesToCapacity(order: ReservationOrder, now: number) {
-  return order.paymentStatus === "paid" || isDraftHoldActive(order, now);
-}
-
-export function getReservedLoads(
-  orders: ReservationOrder[],
-  now: number,
+export function getAdjustedReservedLoads(
+  currentReservedLoads: number,
+  deltaLoads: number,
 ) {
-  return orders.reduce((sum, order) => {
-    if (!contributesToCapacity(order, now)) {
-      return sum;
-    }
+  const nextReservedLoads = currentReservedLoads + deltaLoads;
 
-    return sum + order.loadCount;
-  }, 0);
-}
+  if (nextReservedLoads < 0) {
+    throw new Error("RESERVED_LOADS_UNDERFLOW");
+  }
 
-export function getRemainingLoads(
-  capacityLoads: number,
-  orders: ReservationOrder[],
-  now: number,
-) {
-  return Math.max(capacityLoads - getReservedLoads(orders, now), 0);
+  return nextReservedLoads;
 }
 
 export function hasSufficientCapacity(
   capacityLoads: number,
-  orders: ReservationOrder[],
+  reservedLoads: number,
   requiredLoads: number,
-  now: number,
 ) {
-  return getRemainingLoads(capacityLoads, orders, now) >= requiredLoads;
+  return getRemainingLoads(capacityLoads, reservedLoads) >= requiredLoads;
+}
+
+export function getRemainingLoads(
+  capacityLoads: number,
+  reservedLoads: number,
+) {
+  return Math.max(capacityLoads - reservedLoads, 0);
 }

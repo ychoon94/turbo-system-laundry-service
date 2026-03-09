@@ -6,20 +6,26 @@ const {
   profileQuery,
   addressesQuery,
   slotQuery,
+  reorderDefaultsQuery,
   createDraftOrderMutation,
-  createCheckoutSessionMutation,
-  navigateMock,
+  createCheckoutSessionAction,
+  actionMock,
   mutationMock,
+  useSearchMock,
+  useActionMock,
   useQueryMock,
   useMutationMock,
 } = vi.hoisted(() => ({
   profileQuery: Symbol("profileQuery"),
   addressesQuery: Symbol("addressesQuery"),
   slotQuery: Symbol("slotQuery"),
+  reorderDefaultsQuery: Symbol("reorderDefaultsQuery"),
   createDraftOrderMutation: Symbol("createDraftOrderMutation"),
-  createCheckoutSessionMutation: Symbol("createCheckoutSessionMutation"),
-  navigateMock: vi.fn(),
+  createCheckoutSessionAction: Symbol("createCheckoutSessionAction"),
+  actionMock: vi.fn(),
   mutationMock: vi.fn(),
+  useSearchMock: vi.fn(),
+  useActionMock: vi.fn(),
   useQueryMock: vi.fn(),
   useMutationMock: vi.fn(),
 }));
@@ -48,10 +54,11 @@ vi.mock("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
-  useNavigate: () => navigateMock,
+  useSearch: (...args: unknown[]) => useSearchMock(...args),
 }));
 
 vi.mock("convex/react", () => ({
+  useAction: (...args: unknown[]) => useActionMock(...args),
   useMutation: (...args: unknown[]) => useMutationMock(...args),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
@@ -68,10 +75,11 @@ vi.mock("../../convex/_generated/api", () => ({
       listAvailableSlots: slotQuery,
     },
     orders: {
+      getReorderDefaults: reorderDefaultsQuery,
       createDraftOrder: createDraftOrderMutation,
     },
     payments: {
-      createCheckoutSession: createCheckoutSessionMutation,
+      createCheckoutSession: createCheckoutSessionAction,
     },
   },
 }));
@@ -122,12 +130,28 @@ const deliverySlots = [
   },
 ];
 
+const reorderDefaults = {
+  orderId: "order_retry_1",
+  addressId: "address_1",
+  loadCount: 3,
+  specialInstructions: "Handle delicates separately.",
+  dropoffSlotId: "dropoff_slot_1",
+  deliverySlotId: undefined,
+  dropoffSlotReusable: true,
+  deliverySlotReusable: false,
+  deliverySlotMessage: "The original delivery slot no longer has enough capacity.",
+};
+
 describe("CustomerNewOrderPage", () => {
   beforeEach(() => {
     slotQueryState = "ready";
+    actionMock.mockReset();
     mutationMock.mockReset();
-    navigateMock.mockReset();
+    useSearchMock.mockReset();
+    useActionMock.mockReset();
     useMutationMock.mockReset();
+    useSearchMock.mockReturnValue({});
+    useActionMock.mockImplementation(() => actionMock);
     useMutationMock.mockImplementation(() => mutationMock);
     useQueryMock.mockImplementation((query: symbol, args: unknown) => {
       if (query === profileQuery) {
@@ -138,16 +162,17 @@ describe("CustomerNewOrderPage", () => {
         return addresses;
       }
 
+      if (query === reorderDefaultsQuery) {
+        return args === "skip" ? undefined : reorderDefaults;
+      }
+
       if (query === slotQuery && args && typeof args === "object") {
         const slotArgs = args as {
           requiredLoads: number;
           slotType: "dropoff" | "delivery";
         };
 
-        if (
-          slotQueryState === "refetching" &&
-          slotArgs.requiredLoads === 3
-        ) {
+        if (slotQueryState === "refetching" && slotArgs.requiredLoads === 3) {
           return undefined;
         }
 
@@ -167,7 +192,7 @@ describe("CustomerNewOrderPage", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Reserve capacity, then move into mock checkout.",
+        name: "Reserve capacity, then move into hosted Stripe checkout.",
       }),
     ).toBeInTheDocument();
 
@@ -179,16 +204,34 @@ describe("CustomerNewOrderPage", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Reserve capacity, then move into mock checkout.",
+        name: "Reserve capacity, then move into hosted Stripe checkout.",
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Refreshing capacity for 3 loads."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Refreshing capacity for 3 loads.")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         name: "Pick one drop-off and one delivery window.",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("prefills reorder defaults and clears slots that are no longer reusable", async () => {
+    useSearchMock.mockReturnValue({ reorderFrom: "order_retry_1" });
+
+    render(<CustomerNewOrderPage />);
+
+    expect(screen.getByText("Reorder draft")).toBeInTheDocument();
+    expect(
+      screen.getByText("The original delivery slot no longer has enough capacity."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: /Number of loads/i })).toHaveValue(3);
+    expect(screen.getByRole("combobox", { name: /Address/i })).toHaveValue("address_1");
+    expect(
+      screen.getByRole("textbox", { name: /Special instructions/i }),
+    ).toHaveValue("Handle delicates separately.");
+    expect(screen.getByRole("combobox", { name: /Drop-off slot/i })).toHaveValue(
+      "dropoff_slot_1",
+    );
+    expect(screen.getByRole("combobox", { name: /Delivery slot/i })).toHaveValue("");
   });
 });

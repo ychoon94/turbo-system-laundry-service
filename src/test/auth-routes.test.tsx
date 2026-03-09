@@ -45,7 +45,7 @@ describe("auth route matching", () => {
   it("renders the sign-up UI for nested Clerk sign-up steps", async () => {
     await renderRoute("/sign-up/continue");
 
-    expect(screen.getByText("Phase 1 onboarding")).toBeInTheDocument();
+    expect(screen.getByText("Customer onboarding")).toBeInTheDocument();
     expect(screen.getByTestId("clerk-sign-up")).toBeInTheDocument();
     expect(
       screen.queryByText("This garment ticket does not exist."),

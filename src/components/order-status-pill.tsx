@@ -6,6 +6,7 @@ const statusTone: Record<string, string> = {
   awaiting_payment: "bg-accent/15 text-accent",
   paid: "bg-primary/12 text-primary",
   awaiting_dropoff: "bg-primary text-primary-foreground",
+  cancelled: "bg-destructive/12 text-destructive",
 };
 
 export function OrderStatusPill({ status }: { status: string }) {

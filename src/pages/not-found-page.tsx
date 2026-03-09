@@ -12,7 +12,7 @@ export function NotFoundPage() {
         This garment ticket does not exist.
       </h1>
       <p className="max-w-xl text-base leading-7 text-muted-foreground">
-        The page you requested is outside the Phase 1 customer slice or the URL
+        The page you requested is outside the current customer app or the URL
         is invalid.
       </p>
       <Link

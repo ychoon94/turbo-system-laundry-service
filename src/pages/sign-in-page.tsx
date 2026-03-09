@@ -7,7 +7,7 @@ export function SignInPage() {
     <AuthPageShell
       eyebrow="Customer access"
       title="Laundry checkout with a calmer front door."
-      description="The first Phase 1 slice is focused on one clear promise: sign in, book your drop-off and delivery windows, complete a mock payment, and track the order without a cluttered dashboard."
+      description="The customer checkout flow is focused on one clear promise: sign in, book your drop-off and delivery windows, complete a secure payment, and track the order without a cluttered dashboard."
       side={[
         {
           title: "address-book",
@@ -19,7 +19,7 @@ export function SignInPage() {
         },
         {
           title: "payment-boundary",
-          body: "Mock checkout today, Stripe boundary preserved for later",
+          body: "Hosted Stripe checkout with webhook-confirmed payment status",
         },
       ]}
     >

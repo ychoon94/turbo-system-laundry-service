@@ -47,7 +47,7 @@ export function CustomerOrdersPage() {
           <h2 className="mt-5 text-3xl text-foreground">No orders yet.</h2>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-muted-foreground">
             Save an address, then create the first draft order to see the timed
-            hold, mock checkout, and status history take shape.
+            hold, secure checkout, and status history take shape.
           </p>
           <Link
             to="/customer/new-order"

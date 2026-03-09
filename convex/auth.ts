@@ -161,6 +161,7 @@ async function ensureDefaultBranchAndSlots(
             startTime: template.startTime,
             endTime: template.endTime,
             capacityLoads: 10,
+            reservedLoads: 0,
             cutoffMinutesBeforeStart: 120,
             status: "open",
             createdAt: now,

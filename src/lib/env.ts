@@ -1,9 +1,11 @@
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? "";
 const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
+const siteUrl = import.meta.env.VITE_CONVEX_SITE_URL ?? "";
 
 export const env = {
   clerkPublishableKey,
   convexUrl,
+  siteUrl,
   isConfigured: Boolean(clerkPublishableKey && convexUrl),
   missingKeys: [
     !clerkPublishableKey ? "VITE_CLERK_PUBLISHABLE_KEY" : null,

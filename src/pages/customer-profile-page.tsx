@@ -46,7 +46,7 @@ export function CustomerProfilePage() {
       <PageIntro
         eyebrow="Profile"
         title="Customer identity, delivery notes, and the address book."
-        description="Phase 1 keeps this page intentionally practical: sync the live Clerk profile, capture one complete delivery address, and make the lobby handoff unambiguous for later operational flows."
+        description="The customer checkout flow keeps this page intentionally practical: sync the live Clerk profile, capture one complete delivery address, and make the lobby handoff unambiguous for later operational flows."
       />
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">

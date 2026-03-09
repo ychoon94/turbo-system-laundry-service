@@ -16,7 +16,8 @@ export function SetupRequiredPage() {
           Add the Clerk publishable key and Convex URL from
           <span className="mx-1 font-semibold text-foreground">`.env.local`</span>
           so the customer checkout flow can boot with real auth and realtime
-          data.
+          data. Stripe backend keys are also required before hosted checkout
+          will work end to end.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">

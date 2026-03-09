@@ -24,7 +24,6 @@ export const listAvailableSlots = query({
   returns: v.array(slotSummaryValidator),
   handler: async (ctx, args) => {
     await getCurrentUserOrThrow(ctx);
-    const now = Date.now();
     const slots = await ctx.db
       .query("timeSlots")
       .withIndex("by_branch_type_date", (query) =>
@@ -37,36 +36,19 @@ export const listAvailableSlots = query({
       .collect();
 
     const slotsWithCapacity = await Promise.all(
-      slots.map(async (slot) => {
-        const matchingOrders = await ctx.db
-          .query("orders")
-          .withIndex(
-            args.slotType === "dropoff" ? "by_dropoff_slot" : "by_delivery_slot",
-            (query) =>
-              query.eq(
-                args.slotType === "dropoff"
-                  ? "dropoffSlotId"
-                  : "deliverySlotId",
-                slot._id,
-              ),
-          )
-          .collect();
-
-        const remainingLoads = getRemainingLoads(
-          slot.capacityLoads,
-          matchingOrders,
-          now,
-        );
-
-        return {
+      slots
+        .filter((slot) => slot.status !== "closed")
+        .map(async (slot) => ({
           slotId: slot._id,
           date: slot.date,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          remainingLoads,
+          remainingLoads: getRemainingLoads(
+            slot.capacityLoads,
+            slot.reservedLoads ?? 0,
+          ),
           cutoffMinutesBeforeStart: slot.cutoffMinutesBeforeStart,
-        };
-      }),
+        })),
     );
 
     return slotsWithCapacity.filter(

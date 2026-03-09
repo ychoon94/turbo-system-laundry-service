@@ -42,4 +42,12 @@ test("credential flow stays inside Clerk auth and never falls into app not-found
       name: "A live view of every booking in the customer slice.",
     }),
   ).toBeVisible();
+
+  await page.getByRole("link", { name: "Payments" }).click();
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Every Stripe-backed checkout, grounded in order history.",
+    }),
+  ).toBeVisible();
 });
