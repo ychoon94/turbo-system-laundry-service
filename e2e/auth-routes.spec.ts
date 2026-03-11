@@ -9,7 +9,7 @@ test("direct nested sign-in path renders Clerk UI instead of the app 404", async
 }) => {
   await page.goto("/sign-in/factor-one");
 
-  await expect(page.getByText("Customer access")).toBeVisible();
+  await expect(page.getByText("Secure access")).toBeVisible();
   await expect(
     page.getByText("This garment ticket does not exist."),
   ).toHaveCount(0);

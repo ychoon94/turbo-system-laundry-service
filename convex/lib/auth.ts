@@ -1,7 +1,9 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 
 type AuthCtx = MutationCtx | QueryCtx;
+type UserRole = Doc<"users">["role"];
 
 export async function getIdentityOrThrow(ctx: AuthCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -31,4 +33,19 @@ export async function getCurrentUserOrThrow(ctx: AuthCtx) {
   }
 
   return { identity, user };
+}
+
+export function assertUserRole(user: Pick<Doc<"users">, "role">, allowedRoles: UserRole[]) {
+  if (!allowedRoles.includes(user.role)) {
+    throw new ConvexError("FORBIDDEN");
+  }
+}
+
+export async function getCurrentUserWithRoleOrThrow(
+  ctx: AuthCtx,
+  allowedRoles: UserRole[],
+) {
+  const result = await getCurrentUserOrThrow(ctx);
+  assertUserRole(result.user, allowedRoles);
+  return result;
 }

@@ -12,8 +12,14 @@ import {
   type AnyRouter,
 } from "@tanstack/react-router";
 import { z } from "zod";
-import { AppShell } from "@/components/app-shell";
+import {
+  AdminAppShell,
+  CustomerAppShell,
+  WorkerAppShell,
+} from "@/components/app-shell";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { AdminOrderDetailPage } from "@/pages/admin-order-detail-page";
+import { AdminOrdersPage } from "@/pages/admin-orders-page";
 import { CustomerNewOrderPage } from "@/pages/customer-new-order-page";
 import { CustomerOrderDetailPage } from "@/pages/customer-order-detail-page";
 import { CustomerOrdersPage } from "@/pages/customer-orders-page";
@@ -21,8 +27,13 @@ import { CustomerPaymentsPage } from "@/pages/customer-payments-page";
 import { CustomerProfilePage } from "@/pages/customer-profile-page";
 import { SignInPage } from "@/pages/sign-in-page";
 import { SignUpPage } from "@/pages/sign-up-page";
+import { WorkerOrderDetailPage } from "@/pages/worker-order-detail-page";
+import { WorkerQueuePage } from "@/pages/worker-queue-page";
+import { adminOrdersSearchSchema } from "@/lib/admin-orders-search";
 import {
   ensureCustomerSession,
+  ensureRoleSession,
+  getDefaultRouteForRole,
   type RouterAuthContext,
 } from "@/lib/route-guards";
 
@@ -53,7 +64,7 @@ const indexRoute = createRoute({
   path: "/",
   beforeLoad: ({ context }) => {
     throw redirect({
-      to: context.auth.userId ? "/customer/orders" : "/sign-in",
+      to: context.auth.userId ? getDefaultRouteForRole(context.auth.role) : "/sign-in",
     });
   },
 });
@@ -86,7 +97,7 @@ const customerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/customer",
   beforeLoad: ({ context }) => ensureCustomerSession(context.auth),
-  component: AppShell,
+  component: CustomerAppShell,
 });
 
 const customerIndexRoute = createRoute({
@@ -138,6 +149,62 @@ const customerOrderDetailRoute = createRoute({
   component: CustomerOrderDetailPage,
 });
 
+const workerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/worker",
+  beforeLoad: ({ context }) => ensureRoleSession(context.auth, "worker"),
+  component: WorkerAppShell,
+});
+
+const workerIndexRoute = createRoute({
+  getParentRoute: () => workerRoute,
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: "/worker/queue" });
+  },
+});
+
+const workerQueueRoute = createRoute({
+  getParentRoute: () => workerRoute,
+  path: "/queue",
+  component: WorkerQueuePage,
+});
+
+const workerOrderDetailRoute = createRoute({
+  getParentRoute: () => workerRoute,
+  path: "/orders/$orderId",
+  component: WorkerOrderDetailPage,
+});
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  beforeLoad: ({ context }) => ensureRoleSession(context.auth, "admin"),
+  component: AdminAppShell,
+});
+
+const adminIndexRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/orders" });
+  },
+});
+
+const adminOrdersRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/orders",
+  validateSearch: (search) => adminOrdersSearchSchema.parse(search),
+  component: AdminOrdersPage,
+});
+
+const adminOrderDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/orders/$orderId",
+  validateSearch: (search) => adminOrdersSearchSchema.parse(search),
+  component: AdminOrderDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
@@ -152,6 +219,8 @@ const routeTree = rootRoute.addChildren([
     customerNewOrderRoute,
     customerOrderDetailRoute,
   ]),
+  workerRoute.addChildren([workerIndexRoute, workerQueueRoute, workerOrderDetailRoute]),
+  adminRoute.addChildren([adminIndexRoute, adminOrdersRoute, adminOrderDetailRoute]),
 ]);
 
 export function createAppRouter() {
@@ -164,6 +233,7 @@ export function createAppRouter() {
       auth: {
         isLoaded: false,
         userId: null,
+        role: null,
       },
     },
   });
@@ -180,6 +250,7 @@ export function createTestRouter(initialPath = "/") {
       auth: {
         isLoaded: false,
         userId: null,
+        role: null,
       },
     },
   });

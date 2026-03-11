@@ -293,23 +293,14 @@ export function CustomerOrderDetailPage() {
             )}
           </div>
 
-          {paymentSessionId ? (
-            <div className="rounded-[1.75rem] border border-border bg-background/70 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Stripe session
-              </p>
-              <p className="mt-2 text-sm leading-6 text-foreground">
-                {paymentSessionId}
-              </p>
-            </div>
+          {order.paymentStatus !== "paid" ? (
+            <Link
+              to="/customer/payments"
+              className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+            >
+              View payment history
+            </Link>
           ) : null}
-
-          <Link
-            to="/customer/payments"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
-          >
-            View payment history
-          </Link>
 
           {error ? (
             <p aria-live="polite" className="text-sm font-medium text-destructive">

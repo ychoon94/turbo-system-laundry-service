@@ -1,17 +1,65 @@
 import { UserButton } from "@clerk/clerk-react";
 import { Link, Outlet } from "@tanstack/react-router";
-import { Shirt, Sparkles, SwatchBook } from "lucide-react";
-import { SessionBootstrap } from "@/components/session-bootstrap";
+import { BriefcaseBusiness, Shirt, Sparkles, SwatchBook, Truck } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-const links = [
+type ShellLink = {
+  to: string;
+  label: string;
+};
+
+type AppShellProps = {
+  homeTo: string;
+  suiteLabel: string;
+  description: string;
+  links: ShellLink[];
+};
+
+const customerLinks: ShellLink[] = [
   { to: "/customer/orders", label: "Orders" },
   { to: "/customer/payments", label: "Payments" },
   { to: "/customer/new-order", label: "New Order" },
   { to: "/customer/profile", label: "Profile" },
-] as const;
+];
 
-export function AppShell() {
+const workerLinks: ShellLink[] = [{ to: "/worker/queue", label: "Queue" }];
+
+const adminLinks: ShellLink[] = [{ to: "/admin/orders", label: "Orders" }];
+
+export function CustomerAppShell() {
+  return (
+    <AppShell
+      homeTo="/customer/orders"
+      suiteLabel="Customer suite"
+      description="Editorial-grade laundry service for customers who want the queue to feel less like a utility and more like concierge."
+      links={customerLinks}
+    />
+  );
+}
+
+export function WorkerAppShell() {
+  return (
+    <AppShell
+      homeTo="/worker/queue"
+      suiteLabel="Worker queue"
+      description="Operational view for intake, washing, drying, folding, and issue holds without the customer checkout noise."
+      links={workerLinks}
+    />
+  );
+}
+
+export function AdminAppShell() {
+  return (
+    <AppShell
+      homeTo="/admin/orders"
+      suiteLabel="Admin operations"
+      description="Live operational monitor for worker assignment, issue resolution, and the paid-order pipeline after checkout."
+      links={adminLinks}
+    />
+  );
+}
+
+function AppShell({ homeTo, suiteLabel, description, links }: AppShellProps) {
   return (
     <div className="fabric-noise relative min-h-screen overflow-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-[-18rem] h-[34rem] rounded-full bg-[radial-gradient(circle,_rgba(253,191,144,0.42)_0%,_rgba(253,191,144,0)_68%)] blur-3xl" />
@@ -30,16 +78,13 @@ export function AppShell() {
                 <Shirt className="size-6" />
               </div>
               <div className="space-y-1">
-                <Link to="/customer/orders" className="inline-flex items-center gap-2">
+                <Link to={homeTo} className="inline-flex items-center gap-2">
                   <span className="font-display text-[clamp(1.5rem,2vw,2rem)] text-foreground">
                     Thread & Tide
                   </span>
                   <Sparkles className="size-4 text-accent" />
                 </Link>
-                <p className="max-w-xl text-sm text-muted-foreground">
-                  Editorial-grade laundry service for customers who want the
-                  queue to feel less like a utility and more like concierge.
-                </p>
+                <p className="max-w-xl text-sm text-muted-foreground">{description}</p>
               </div>
             </div>
 
@@ -64,8 +109,14 @@ export function AppShell() {
 
               <div className="flex items-center gap-3 rounded-full border border-border/80 bg-background/60 px-3 py-2">
                 <div className="hidden items-center gap-2 text-xs uppercase tracking-[0.22em] text-muted-foreground sm:flex">
-                  <SwatchBook className="size-3.5" />
-                  Customer suite
+                  {suiteLabel === "Admin operations" ? (
+                    <BriefcaseBusiness className="size-3.5" />
+                  ) : suiteLabel === "Worker queue" ? (
+                    <Truck className="size-3.5" />
+                  ) : (
+                    <SwatchBook className="size-3.5" />
+                  )}
+                  {suiteLabel}
                 </div>
                 <UserButton
                   appearance={{
@@ -80,11 +131,9 @@ export function AppShell() {
           </div>
         </header>
 
-        <SessionBootstrap>
-          <main id="main-content" className="flex-1 py-6 sm:py-8">
-            <Outlet />
-          </main>
-        </SessionBootstrap>
+        <main id="main-content" className="flex-1 py-6 sm:py-8">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

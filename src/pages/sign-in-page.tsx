@@ -5,21 +5,21 @@ import { clerkAppearance } from "@/lib/clerk-appearance";
 export function SignInPage() {
   return (
     <AuthPageShell
-      eyebrow="Customer access"
-      title="Laundry checkout with a calmer front door."
-      description="The customer checkout flow is focused on one clear promise: sign in, book your drop-off and delivery windows, complete a secure payment, and track the order without a cluttered dashboard."
+      eyebrow="Secure access"
+      title="Checkout, operations, and fulfillment start from one sign-in."
+      description="Customers can book and track orders here, while workers and admins are routed into the operational tools attached to the same account."
       side={[
         {
-          title: "address-book",
-          body: "One address book tuned for lobby handoff",
+          title: "customers",
+          body: "Book drop-off windows, pay through hosted Stripe checkout, and track each order in one place.",
         },
         {
-          title: "capacity",
-          body: "Load-based slot availability with live capacity",
+          title: "workers",
+          body: "Advance assigned loads through intake, washing, drying, folding, and issue escalation.",
         },
         {
-          title: "payment-boundary",
-          body: "Hosted Stripe checkout with webhook-confirmed payment status",
+          title: "admins",
+          body: "Assign owners, resolve issue holds, and monitor the paid-order board without a separate portal.",
         },
       ]}
     >
@@ -27,7 +27,7 @@ export function SignInPage() {
         path="/sign-in"
         routing="path"
         signUpUrl="/sign-up"
-        forceRedirectUrl="/customer/orders"
+        forceRedirectUrl="/"
         appearance={clerkAppearance}
       />
     </AuthPageShell>

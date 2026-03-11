@@ -45,11 +45,11 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
         <div className="rounded-[2rem] border border-border bg-card/85 px-8 py-10 text-center shadow-[0_30px_90px_-60px_rgba(18,67,62,0.45)]">
           <LoaderCircle className="mx-auto size-8 animate-spin text-primary" />
           <p className="mt-4 font-display text-2xl text-foreground">
-            Setting your customer suite
+            Preparing your workspace
           </p>
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-            We are syncing your profile and loading the first week of delivery
-            slots so checkout is ready as soon as you land.
+            We are syncing your profile and loading the shared branch context so
+            customer, worker, and admin tools are ready as soon as you land.
           </p>
         </div>
       </div>
@@ -68,8 +68,8 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
         </h2>
         <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
           Check your Convex and Clerk configuration, then refresh. The bootstrap
-          mutation is responsible for creating your profile and demo branch
-          slots.
+          mutation is responsible for creating your profile and ensuring the
+          shared branch schedule exists.
         </p>
       </div>
     );

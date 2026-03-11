@@ -1,6 +1,6 @@
-# Thread & Tide Customer Checkout
+# Thread & Tide Laundry Operations
 
-Customer-facing laundry checkout built with React, Clerk, Convex, and Stripe.
+Laundry checkout plus in-shop operations built with React, Clerk, Convex, and Stripe.
 
 ## Current Scope
 
@@ -11,9 +11,12 @@ Customer-facing laundry checkout built with React, Clerk, Convex, and Stripe.
 - First failed Stripe payment attempts cancel the held order and expose reorder
 - Automatic refund protection if Stripe later reports success for a cancelled order
 - Customer order detail, timed-hold visibility, and payment history
+- Admin order board with assignment filters and issue-hold recovery
+- Worker queue with operational status transitions from `awaiting_dropoff` through `ready_for_delivery`
+- Issue reporting with Convex file-storage evidence uploads
 
-Worker, driver, admin, notifications, uploads, pricing UI, and multi-branch
-operations are still deferred.
+Driver workflows, notifications, pricing UI, analytics, staff onboarding UI, and
+multi-branch operations are still deferred.
 
 ## Stack
 
@@ -55,6 +58,14 @@ Backend / Convex:
 - The first `payment_intent.payment_failed` cancels the order and releases both slot holds.
 - Cancelled failed/refunded orders can be reordered through a prefilled `/customer/new-order?reorderFrom=<orderId>` flow.
 - A scheduled cleanup pass releases expired unpaid holds as a safety net.
+
+## Operations Notes
+
+- Paid orders can move through `awaiting_dropoff -> received_at_shop -> washing -> drying -> folding -> ready_for_delivery`.
+- Admins assign one active worker per order and can resume orders from `issue_hold`.
+- Workers can only view and progress their assigned orders.
+- Issue reports can include uploaded evidence files stored in Convex file storage.
+- Staff users must already exist in Clerk and have matching `users` rows in Convex with `role = "admin"` or `role = "worker"`.
 
 ## Local Stripe Webhook Test
 

@@ -2,6 +2,8 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import {
     changeSourceValidator,
+    issueStatusValidator,
+    issueTypeValidator,
     orderStatusValidator,
     paymentProviderValidator,
     paymentStatusValidator,
@@ -94,11 +96,21 @@ export default defineSchema({
         paymentStatus: paymentStatusValidator,
         holdExpiresAt: v.optional(v.number()),
         paymentSessionId: v.optional(v.string()),
+        assignedWorkerId: v.optional(v.id('users')),
         paidAt: v.optional(v.number()),
+        receivedAtShopAt: v.optional(v.number()),
+        washingStartedAt: v.optional(v.number()),
+        washingCompletedAt: v.optional(v.number()),
+        dryingCompletedAt: v.optional(v.number()),
+        foldingCompletedAt: v.optional(v.number()),
+        readyForDeliveryAt: v.optional(v.number()),
+        issueHoldAt: v.optional(v.number()),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index('by_customer', ['customerId'])
+        .index('by_current_status', ['currentStatus'])
+        .index('by_assigned_worker', ['assignedWorkerId'])
         .index('by_dropoff_slot', ['dropoffSlotId'])
         .index('by_delivery_slot', ['deliverySlotId'])
         .index('by_payment_status_hold_expires_at', ['paymentStatus', 'holdExpiresAt'])
@@ -140,4 +152,19 @@ export default defineSchema({
         .index('by_customer', ['customerId'])
         .index('by_checkout_session', ['providerCheckoutSessionId'])
         .index('by_payment_intent', ['providerPaymentIntentId']),
+
+    issueReports: defineTable({
+        orderId: v.id('orders'),
+        reporterId: v.id('users'),
+        issueType: issueTypeValidator,
+        description: v.string(),
+        status: issueStatusValidator,
+        resolutionNote: v.optional(v.string()),
+        evidenceFileIds: v.array(v.id('_storage')),
+        createdAt: v.number(),
+        resolvedAt: v.optional(v.number()),
+        updatedAt: v.number(),
+    })
+        .index('by_order', ['orderId'])
+        .index('by_status', ['status']),
 });

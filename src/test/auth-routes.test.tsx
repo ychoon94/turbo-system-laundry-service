@@ -7,7 +7,11 @@ vi.mock("@clerk/clerk-react", () => ({
   SignUp: () => <div data-testid="clerk-sign-up">Mock Clerk Sign Up</div>,
 }));
 
-async function renderRoute(path: string, userId: string | null = null) {
+async function renderRoute(
+  path: string,
+  userId: string | null = null,
+  role: "customer" | "worker" | "admin" | null = null,
+) {
   const router = createTestRouter(path);
 
   await act(async () => {
@@ -17,6 +21,7 @@ async function renderRoute(path: string, userId: string | null = null) {
         auth={{
           isLoaded: true,
           userId,
+          role,
         }}
       />,
     );
@@ -35,7 +40,7 @@ describe("auth route matching", () => {
   it("renders the sign-in UI for nested Clerk sign-in steps", async () => {
     await renderRoute("/sign-in/factor-one");
 
-    expect(screen.getByText("Customer access")).toBeInTheDocument();
+    expect(screen.getByText("Secure access")).toBeInTheDocument();
     expect(screen.getByTestId("clerk-sign-in")).toBeInTheDocument();
     expect(
       screen.queryByText("This garment ticket does not exist."),
@@ -56,7 +61,7 @@ describe("auth route matching", () => {
     const router = await renderRoute("/customer/orders");
 
     expect(router.state.location.pathname).toBe("/sign-in");
-    expect(screen.getByText("Customer access")).toBeInTheDocument();
+    expect(screen.getByText("Secure access")).toBeInTheDocument();
   });
 
   it("still shows not-found for unrelated invalid routes", async () => {

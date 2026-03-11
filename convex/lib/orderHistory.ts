@@ -2,7 +2,7 @@ import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 
 type OrderStatus = Doc<"orders">["currentStatus"];
-type ChangeSource = "customer" | "system" | "webhook";
+type ChangeSource = Doc<"orderStatusHistory">["changeSource"];
 
 export async function appendOrderHistory(
   ctx: MutationCtx,

@@ -2,6 +2,83 @@
 
 ## Current Task
 
+- [completed] Fix the accepted review findings for issue-hold creation safety and admin-order detail scope, then verify with focused tests.
+
+## Steps
+
+- [completed] Re-check the worker issue-hold flow and admin detail query against the reported review findings.
+- [completed] Prevent issue-report creation from succeeding when the order cannot legally enter `issue_hold`, and reflect that guard in the worker UI.
+- [completed] Enforce the same operational-order scope in admin detail that the admin board already applies.
+- [completed] Run focused tests for the changed backend and route/UI paths, then capture the result and any new lessons.
+
+## Acceptance Criteria
+
+- Workers cannot create a new open issue record for an order that is already in `issue_hold` or any other non-hold-entry state.
+- The worker detail page does not present a live "Create issue hold" path when the current order state cannot transition into `issue_hold`.
+- Direct admin detail access rejects non-operational or unpaid orders instead of exposing them outside the admin board contract.
+- Focused automated verification covers the mutated issue/admin paths without regressing the existing operational tests.
+
+## Results
+
+- Tightened `convex/issues.ts` so issue-report creation now shares the same hold-entry state gate as `putOnIssueHold`, preventing orphan open issues when the order is already paused or otherwise ineligible.
+- Updated `src/pages/worker-order-detail-page.tsx` to explain when issue hold is available and disable the form controls plus submit button when the current order state cannot transition into `issue_hold`.
+- Scoped `orders.getAdminOrderDetail` to operational paid orders so direct admin detail navigation no longer bypasses the admin board contract.
+- Verification passed with `npm test -- src/test/issues-and-queue.test.ts src/test/operations-mutations.test.ts src/test/worker-order-detail-page.test.tsx` and `npm run lint`.
+
+## Current Task
+
+- [completed] Apply the UI review fixes for shared sign-in copy, URL-backed admin filters, and cleaner customer payment detail states, then verify with tests and Playwright.
+
+## Steps
+
+- [completed] Inspect the flagged route/page files and confirm the concrete causes behind each review finding.
+- [completed] Move admin board filters into typed route search params and preserve them through detail navigation.
+- [completed] Update the shared sign-in shell copy and simplify the customer order detail payment sidebar.
+- [completed] Run focused verification plus repo checks, then record the result and any follow-up lessons.
+
+## Acceptance Criteria
+
+- Admin board filters survive refresh, browser navigation, and the in-app back link because they live in the URL.
+- The shared `/sign-in` page reads correctly for customer, worker, and admin accounts before redirect.
+- Paid customer order detail no longer repeats the payment-history CTA or exposes a standalone raw Stripe session block.
+- Verification covers the updated auth copy, route behavior, and customer/admin UI paths without introducing regressions.
+
+## Results
+
+- Added a shared admin-orders search schema/helper so the board filter state now lives in the URL and survives reload plus the admin detail back link.
+- Rewrote the shared sign-in shell copy so it reads correctly for customer, worker, and admin accounts before role-based redirect.
+- Removed the standalone raw Stripe session block from customer order detail and kept the secondary payment-history link out of the paid-order path.
+- Verification passed with `npm test`, `npm run lint`, `npm run build`, and a focused Playwright browser check covering sign-in copy, admin URL-backed filters, and customer payment detail cleanup.
+
+## Current Task
+
+- [completed] Implement phase 3 admin + worker operations: operational order state machine, worker assignment, issue handling with evidence uploads, role-aware routes, and ops UI verification.
+
+## Steps
+
+- [completed] Re-check the existing customer checkout slice, auth shell, and backend seams that Phase 3 will extend.
+- [completed] Update shared Convex domain/schema/auth helpers for operational statuses, worker assignment, and issue reports with evidence storage.
+- [completed] Implement backend queries/mutations for admin order board/detail, worker queue/detail, lifecycle transitions, and issue hold/resume flows.
+- [completed] Update the React app for role-aware routing, suite-specific navigation, worker/admin pages, and customer-visible status expansion.
+- [completed] Regenerate Convex types and run verification: targeted/new tests, full `npm test`, `npm run lint`, `npm run build`, and feasible Convex sync checks.
+
+## Acceptance Criteria
+
+- Paid customer orders can move through `awaiting_dropoff -> received_at_shop -> washing -> drying -> folding -> ready_for_delivery` with backend-enforced role and state checks.
+- Admins can view/filter operational orders, assign one active worker per order, inspect issue state, and resume issue-held orders.
+- Workers can view only their assigned queue, progress permitted lifecycle steps, and create issue reports with uploaded evidence.
+- Customer order detail/history continues to work and reflects the new operational statuses without regressing checkout/payment behavior.
+
+## Results
+
+- Extended the Convex domain/schema with operational order statuses, worker assignment state, and an `issueReports` table backed by Convex file storage IDs.
+- Added admin/worker backend APIs for order board/detail views, worker queue/detail views, assignment, lifecycle transitions, issue creation, and issue-hold recovery.
+- Converted the router and shell from customer-only to role-aware suites, then added `/admin/orders`, `/admin/orders/$orderId`, `/worker/queue`, and `/worker/orders/$orderId`.
+- Expanded automated coverage with operational state-machine tests, assignment/issue mutation tests, and queue/issue query tests while keeping the existing checkout/payment suite green.
+- Refreshed `README.md` and `test-credential.md` to reflect the shipped ops slice and the manual staff-provisioning requirement.
+
+## Current Task
+
 - [completed] Implement phase 2 customer checkout productionization: real Stripe checkout/webhook flow, durable slot reservations, customer payment history, doc refresh, and verification.
 
 ## Steps

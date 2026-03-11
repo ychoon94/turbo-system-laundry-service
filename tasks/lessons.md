@@ -20,8 +20,17 @@
 
 ## 2026-03-09
 
+- For TanStack Router list/detail flows with shareable filters, define one small typed search schema/helper and reuse it on both routes so refresh and in-app back links preserve the operator’s current view.
+- If UI state is supposed to be URL-backed, keep the URL as the source of truth instead of mirroring it through `useEffect` into local state; React’s lint rules correctly flag that sync pattern as a render-loop risk.
 - Stripe `payment_intent.payment_failed` should be treated as a retryable signal in Checkout flows; terminal cancellation and slot release should stay tied to `checkout.session.expired` or timed-hold cleanup.
 - Mutation-level webhook tests can be written without a full Convex runtime by invoking exported internal mutation `_handler` functions with a focused mocked `ctx.db` surface and explicit side-effect mocks.
 - Live Stripe retry E2E is best kept behind explicit environment flags in this repo (`PLAYWRIGHT_ENABLE_STRIPE_RETRY_E2E`, `PLAYWRIGHT_PENDING_ORDER_ID`, auth secrets) so the default CI lane remains deterministic.
 - In this Checkout integration, `payment_intent.payment_failed` cannot rely on PaymentIntent metadata alone; Stripe reliably exposes the owning order through `checkout.sessions.list({ payment_intent })` plus session metadata.
 - After backend webhook changes, run `npx convex dev --once` before trusting live browser checks; local codegen/tests can pass while the hosted Convex deployment still serves the previous validator shape.
+- When adding new role-based suites to the TanStack Router in this repo, keep auth decisions centralized in `src/app-providers.tsx`, `src/lib/route-guards.ts`, and `src/router.tsx`; page-level role branching makes the route tests fragile and duplicates the shell logic.
+- For Convex operational workflows, a small pure helper module for state transitions is worth keeping because it supports cheap rule tests and avoids re-encoding the same status graph across admin, worker, and issue mutations.
+- In this repo, staff onboarding is still external to the app, so any new worker/admin feature should explicitly document the Clerk-plus-Convex provisioning dependency instead of implying that test users can be created entirely from local code.
+
+## 2026-03-10
+
+- When one operational step creates a record and a second step performs the state transition, either make the pair atomic or guard the first step with the same transition predicate; otherwise partial success can leak orphan work items into admin queues.

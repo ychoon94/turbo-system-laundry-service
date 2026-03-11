@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ensureCustomerSession } from "@/lib/route-guards";
+import { ensureCustomerSession, getDefaultRouteForRole } from "@/lib/route-guards";
 
 describe("ensureCustomerSession", () => {
   it("throws a redirect when the user is missing", () => {
@@ -7,6 +7,7 @@ describe("ensureCustomerSession", () => {
       ensureCustomerSession({
         isLoaded: true,
         userId: null,
+        role: null,
       });
       throw new Error("Expected a redirect to be thrown");
     } catch (error) {
@@ -20,7 +21,14 @@ describe("ensureCustomerSession", () => {
       ensureCustomerSession({
         isLoaded: true,
         userId: "user_123",
+        role: "customer",
       }),
     ).not.toThrow();
+  });
+
+  it("maps roles to their default suite routes", () => {
+    expect(getDefaultRouteForRole("customer")).toBe("/customer/orders");
+    expect(getDefaultRouteForRole("worker")).toBe("/worker/queue");
+    expect(getDefaultRouteForRole("admin")).toBe("/admin/orders");
   });
 });
