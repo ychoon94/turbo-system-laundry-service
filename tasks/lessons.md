@@ -34,3 +34,8 @@
 ## 2026-03-10
 
 - When one operational step creates a record and a second step performs the state transition, either make the pair atomic or guard the first step with the same transition predicate; otherwise partial success can leak orphan work items into admin queues.
+
+## 2026-03-11
+
+- When a new post-processing role is introduced in this repo, split “all operational orders” from “worker queue orders” in the shared state helpers; otherwise the previous role’s queue contract silently expands into the next phase’s statuses.
+- For Convex helper modules that are reused from both queries and mutations, type them against `QueryCtx` / `MutationCtx` slices instead of hand-rolled `db` shapes; the generated database interfaces are stricter than an ad hoc approximation and will fail during `npm run codegen`.

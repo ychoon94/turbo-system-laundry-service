@@ -40,6 +40,8 @@ export const orderStatusValidator = v.union(
   v.literal("drying"),
   v.literal("folding"),
   v.literal("ready_for_delivery"),
+  v.literal("out_for_delivery"),
+  v.literal("delivered"),
   v.literal("issue_hold"),
   v.literal("cancelled"),
 );
@@ -59,6 +61,7 @@ export const paymentProviderValidator = v.union(
 export const changeSourceValidator = v.union(
   v.literal("customer"),
   v.literal("worker"),
+  v.literal("driver"),
   v.literal("admin"),
   v.literal("system"),
   v.literal("webhook"),
@@ -76,6 +79,14 @@ export const issueTypeValidator = v.union(
 export const issueStatusValidator = v.union(
   v.literal("open"),
   v.literal("resolved"),
+);
+
+export const deliveryTaskStatusValidator = v.union(
+  v.literal("unassigned"),
+  v.literal("assigned"),
+  v.literal("out_for_delivery"),
+  v.literal("issue_reported"),
+  v.literal("delivered"),
 );
 
 export function buildOrderNumber(now: number) {

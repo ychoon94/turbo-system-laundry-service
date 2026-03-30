@@ -14,9 +14,10 @@ Laundry checkout plus in-shop operations built with React, Clerk, Convex, and St
 - Admin order board with assignment filters and issue-hold recovery
 - Worker queue with operational status transitions from `awaiting_dropoff` through `ready_for_delivery`
 - Issue reporting with Convex file-storage evidence uploads
+- Driver queue with final-mile assignment, proof capture, and delivery issue recovery back to `ready_for_delivery`
 
-Driver workflows, notifications, pricing UI, analytics, staff onboarding UI, and
-multi-branch operations are still deferred.
+Notifications, pricing UI, analytics, staff onboarding UI, pickup-service
+workflows, and multi-branch operations are still deferred.
 
 ## Stack
 
@@ -63,9 +64,12 @@ Backend / Convex:
 
 - Paid orders can move through `awaiting_dropoff -> received_at_shop -> washing -> drying -> folding -> ready_for_delivery`.
 - Admins assign one active worker per order and can resume orders from `issue_hold`.
+- Delivery-ready orders continue through `ready_for_delivery -> out_for_delivery -> delivered`.
+- Admins assign one active driver per delivery task and can reassign when a driver reports a failed handoff.
 - Workers can only view and progress their assigned orders.
+- Drivers can only view their assigned delivery tasks, must upload proof to complete delivery, and can return a stop to `ready_for_delivery` with issue evidence.
 - Issue reports can include uploaded evidence files stored in Convex file storage.
-- Staff users must already exist in Clerk and have matching `users` rows in Convex with `role = "admin"` or `role = "worker"`.
+- Staff users must already exist in Clerk and have matching `users` rows in Convex with `role = "admin"`, `role = "worker"`, or `role = "driver"`.
 
 ## Local Stripe Webhook Test
 

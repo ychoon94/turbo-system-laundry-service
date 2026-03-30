@@ -97,6 +97,21 @@ export function CustomerOrderDetailPage() {
           </div>
 
           <div className="rounded-[1.75rem] border border-border bg-background/60 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Fulfillment status
+            </p>
+            <p className="mt-3 text-sm leading-7 text-foreground">
+              {order.currentStatus === "out_for_delivery"
+                ? "Your order is currently out for delivery. The final-mile driver is working against the delivery slot shown above."
+                : order.currentStatus === "delivered"
+                  ? "Your order has been delivered. Check the status history below for the recorded handoff."
+                  : order.currentStatus === "ready_for_delivery"
+                    ? "Your order has cleared in-shop processing and is waiting for the driver handoff."
+                    : "This page keeps the commercial and operational status in one place as the order moves through the service."}
+            </p>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-border bg-background/60 p-5">
             <div className="flex items-start gap-3">
               <div className="rounded-full bg-primary/10 p-2 text-primary">
                 <MapPinned className="size-4" />

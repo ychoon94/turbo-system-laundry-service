@@ -3,7 +3,7 @@ import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getCurrentUserWithRoleOrThrow } from "./lib/auth";
 import { appendOrderHistory } from "./lib/orderHistory";
-import { isOperationallyAccessible } from "./lib/orderOperations";
+import { canAssignWorker, isWorkerQueueAccessible } from "./lib/orderOperations";
 import { orderStatusValidator } from "./lib/domain";
 
 type OrderDoc = Doc<"orders">;
@@ -261,7 +261,7 @@ export const assignOrderToWorker = mutation({
       throw new ConvexError("FORBIDDEN");
     }
 
-    if (!order || !isOperationallyAccessible(order)) {
+    if (!order || !canAssignWorker(order)) {
       throw new ConvexError("INVALID_STATE_TRANSITION");
     }
 
@@ -297,7 +297,7 @@ export const listMyQueue = query({
 
     const items = await Promise.all(
       orders
-        .filter((order) => isOperationallyAccessible(order))
+        .filter((order) => isWorkerQueueAccessible(order))
         .map(async (order) => {
           const [customer, dropoffSlot, issueReports] = await Promise.all([
             ctx.db.get(order.customerId),
@@ -349,6 +349,10 @@ export const getMyAssignedOrderDetail = query({
 
     if (order.assignedWorkerId !== user._id) {
       throw new ConvexError("FORBIDDEN");
+    }
+
+    if (!isWorkerQueueAccessible(order)) {
+      throw new ConvexError("NOT_FOUND");
     }
 
     return await buildOperationalOrderDetail(ctx, order._id);

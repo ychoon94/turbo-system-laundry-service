@@ -7,6 +7,8 @@ export const adminOrderStatuses = [
   "drying",
   "folding",
   "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
   "issue_hold",
 ] as const;
 

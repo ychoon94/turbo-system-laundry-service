@@ -7,7 +7,7 @@ export function SignInPage() {
     <AuthPageShell
       eyebrow="Secure access"
       title="Checkout, operations, and fulfillment start from one sign-in."
-      description="Customers can book and track orders here, while workers and admins are routed into the operational tools attached to the same account."
+      description="Customers can book and track orders here, while workers, drivers, and admins are routed into the operational tools attached to the same account."
       side={[
         {
           title: "customers",
@@ -16,6 +16,10 @@ export function SignInPage() {
         {
           title: "workers",
           body: "Advance assigned loads through intake, washing, drying, folding, and issue escalation.",
+        },
+        {
+          title: "drivers",
+          body: "Pick up assigned final-mile stops, capture proof, and send failed handoffs back for reassignment.",
         },
         {
           title: "admins",

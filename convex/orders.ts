@@ -18,6 +18,7 @@ import {
   isAssignedToWorker,
   isOperationallyAccessible,
 } from "./lib/orderOperations";
+import { ensureDeliveryTaskForOrder } from "./lib/deliveryTasks";
 import { calculateOrderTotals, getRemainingLoads, isHoldActive } from "./lib/orderRules";
 import { reserveOrderSlots } from "./lib/slotReservations";
 
@@ -65,6 +66,8 @@ const workerSummaryValidator = v.object({
   email: v.optional(v.string()),
 });
 
+const driverSummaryValidator = workerSummaryValidator;
+
 const customerSummaryValidator = v.object({
   userId: v.id("users"),
   fullName: v.string(),
@@ -77,6 +80,14 @@ const issueEvidenceValidator = v.object({
   url: v.union(v.string(), v.null()),
 });
 
+const deliveryTaskStatusValidator = v.union(
+  v.literal("unassigned"),
+  v.literal("assigned"),
+  v.literal("out_for_delivery"),
+  v.literal("issue_reported"),
+  v.literal("delivered"),
+);
+
 const issueSummaryValidator = v.object({
   _id: v.id("issueReports"),
   issueType: issueTypeValidator,
@@ -87,6 +98,22 @@ const issueSummaryValidator = v.object({
   createdAt: v.number(),
   resolvedAt: v.optional(v.number()),
   evidenceFiles: v.array(issueEvidenceValidator),
+});
+
+const deliveryTaskSummaryValidator = v.object({
+  _id: v.id("deliveryTasks"),
+  status: deliveryTaskStatusValidator,
+  assignedDriver: v.union(driverSummaryValidator, v.null()),
+  deliverySlot: slotInfoValidator,
+  addressSnapshot: addressInfoValidator,
+  proofFiles: v.array(issueEvidenceValidator),
+  issueNote: v.optional(v.string()),
+  issueEvidenceFiles: v.array(issueEvidenceValidator),
+  completionNote: v.optional(v.string()),
+  createdAt: v.number(),
+  startedAt: v.optional(v.number()),
+  issueReportedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
 });
 
 const statusHistoryValidator = v.object({
@@ -112,6 +139,8 @@ const adminOrderListItemValidator = v.object({
     email: v.optional(v.string()),
   }),
   assignedWorker: v.union(workerSummaryValidator, v.null()),
+  assignedDriver: v.union(driverSummaryValidator, v.null()),
+  deliveryTaskStatus: v.optional(deliveryTaskStatusValidator),
   dropoffSlot: slotInfoValidator,
   issueCountOpen: v.number(),
 });
@@ -132,6 +161,7 @@ const operationalOrderDetailValidator = v.object({
   deliverySlot: slotInfoValidator,
   address: addressInfoValidator,
   issueReports: v.array(issueSummaryValidator),
+  deliveryTask: v.union(deliveryTaskSummaryValidator, v.null()),
   statusHistory: v.array(statusHistoryValidator),
 });
 
@@ -224,6 +254,8 @@ function toWorkerSummary(worker: UserDoc | null) {
     : null;
 }
 
+const toDriverSummary = toWorkerSummary;
+
 function toCustomerSummary(customer: UserDoc) {
   return {
     userId: customer._id,
@@ -294,11 +326,70 @@ async function buildIssueSummaries(
   );
 }
 
+async function buildDeliveryTaskSummary(
+  ctx: Parameters<typeof getCurrentUserOrThrow>[0],
+  order: OrderDoc,
+) {
+  const deliveryTask = await ctx.db
+    .query("deliveryTasks")
+    .withIndex("by_order", (query) => query.eq("orderId", order._id))
+    .unique();
+
+  if (!deliveryTask) {
+    return null;
+  }
+
+  const assignedDriver = deliveryTask.driverId
+    ? ((await ctx.db.get(deliveryTask.driverId)) as UserDoc | null)
+    : null;
+  const deliverySlot = await ctx.db.get(deliveryTask.deliverySlotId);
+
+  if (!deliverySlot) {
+    throw new ConvexError("ORDER_CONTEXT_MISSING");
+  }
+
+  const [proofFiles, issueEvidenceFiles] = await Promise.all([
+    Promise.all(
+      deliveryTask.proofFileIds.map(async (storageId: Id<"_storage">) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      })),
+    ),
+    Promise.all(
+      (deliveryTask.issueEvidenceFileIds ?? []).map(async (storageId: Id<"_storage">) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      })),
+    ),
+  ]);
+
+  return {
+    _id: deliveryTask._id,
+    status: deliveryTask.status,
+    assignedDriver: toDriverSummary(assignedDriver),
+    deliverySlot: toSlotInfo(deliverySlot),
+    addressSnapshot: deliveryTask.addressSnapshot,
+    proofFiles,
+    issueNote: deliveryTask.issueNote,
+    issueEvidenceFiles,
+    completionNote: deliveryTask.completionNote,
+    createdAt: deliveryTask.createdAt,
+    startedAt: deliveryTask.startedAt,
+    issueReportedAt: deliveryTask.issueReportedAt,
+    completedAt: deliveryTask.completedAt,
+  };
+}
+
 async function buildOperationalOrderDetail(
   ctx: Parameters<typeof getCurrentUserOrThrow>[0],
   order: OrderDoc,
 ) {
-  const [{ customer, assignedWorker, dropoffSlot, deliverySlot, address }, statusHistory, issueReports] =
+  const [
+    { customer, assignedWorker, dropoffSlot, deliverySlot, address },
+    statusHistory,
+    issueReports,
+    deliveryTask,
+  ] =
     await Promise.all([
       loadRequiredOrderContext(ctx, order),
       ctx.db
@@ -311,6 +402,7 @@ async function buildOperationalOrderDetail(
         .withIndex("by_order", (db) => db.eq("orderId", order._id))
         .order("desc")
         .collect(),
+      buildDeliveryTaskSummary(ctx, order),
     ]);
 
   return {
@@ -329,6 +421,7 @@ async function buildOperationalOrderDetail(
     deliverySlot: toSlotInfo(deliverySlot),
     address: toAddressInfo(address),
     issueReports: await buildIssueSummaries(ctx, issueReports),
+    deliveryTask,
     statusHistory: statusHistory.map((entry) => ({
       _id: entry._id,
       toStatus: entry.toStatus,
@@ -664,12 +757,16 @@ export const getAdminOrders = query({
 
     const items = await Promise.all(
       visibleOrders.map(async (order) => {
-        const [{ customer, assignedWorker, dropoffSlot }, issueReports] = await Promise.all([
+        const [{ customer, assignedWorker, dropoffSlot }, issueReports, deliveryTask] = await Promise.all([
           loadRequiredOrderContext(ctx, order),
           ctx.db
             .query("issueReports")
             .withIndex("by_order", (db) => db.eq("orderId", order._id))
             .collect(),
+          ctx.db
+            .query("deliveryTasks")
+            .withIndex("by_order", (query) => query.eq("orderId", order._id))
+            .unique(),
         ]);
 
         if (args.dateFrom && dropoffSlot.date < args.dateFrom) {
@@ -706,6 +803,11 @@ export const getAdminOrders = query({
             email: customer.email,
           },
           assignedWorker: toWorkerSummary(assignedWorker),
+          assignedDriver:
+            deliveryTask?.driverId
+              ? toDriverSummary(await ctx.db.get(deliveryTask.driverId))
+              : null,
+          deliveryTaskStatus: deliveryTask?.status,
           dropoffSlot: toSlotInfo(dropoffSlot),
           issueCountOpen: issueReports.filter((issue) => issue.status === "open").length,
         };
@@ -815,16 +917,47 @@ export const completeFolding = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    return await transitionOperationalOrder(ctx, {
-      orderId: args.orderId,
-      allowedRoles: ["worker"],
-      expectedCurrentStatus: "folding",
-      note: "Folding completed. Order is ready for delivery scheduling.",
-      patch: {
-        foldingCompletedAt: Date.now(),
-        readyForDeliveryAt: Date.now(),
-      },
+    const { user } = await getCurrentUserWithRoleOrThrow(ctx, ["worker"]);
+    const order = await ctx.db.get(args.orderId);
+
+    if (!order) {
+      throw new ConvexError("NOT_FOUND");
+    }
+
+    if (!isOperationallyAccessible(order) || order.currentStatus !== "folding") {
+      throw new ConvexError("INVALID_STATE_TRANSITION");
+    }
+
+    if (!isAssignedToWorker(order, user._id)) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(order._id, {
+      currentStatus: "ready_for_delivery",
+      foldingCompletedAt: now,
+      readyForDeliveryAt: now,
+      updatedAt: now,
     });
+
+    await ensureDeliveryTaskForOrder(
+      {
+        db: ctx.db,
+      },
+      order,
+      now,
+    );
+
+    await appendOrderHistory(ctx, {
+      orderId: order._id,
+      fromStatus: order.currentStatus,
+      toStatus: "ready_for_delivery",
+      changeSource: "worker",
+      notes: "Folding completed. Order is ready for final-mile delivery.",
+      createdAt: now,
+    });
+
+    return null;
   },
 });
 
@@ -924,6 +1057,16 @@ export const resumeFromIssueHold = mutation({
         args.nextStatus === "ready_for_delivery" ? now : order.readyForDeliveryAt,
       updatedAt: now,
     });
+
+    if (args.nextStatus === "ready_for_delivery") {
+      await ensureDeliveryTaskForOrder(
+        {
+          db: ctx.db,
+        },
+        order,
+        now,
+      );
+    }
 
     await appendOrderHistory(ctx, {
       orderId: order._id,

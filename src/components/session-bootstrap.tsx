@@ -49,7 +49,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
           </p>
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
             We are syncing your profile and loading the shared branch context so
-            customer, worker, and admin tools are ready as soon as you land.
+            customer, worker, driver, and admin tools are ready as soon as you land.
           </p>
         </div>
       </div>

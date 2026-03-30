@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import {
     changeSourceValidator,
+    deliveryTaskStatusValidator,
     issueStatusValidator,
     issueTypeValidator,
     orderStatusValidator,
@@ -166,5 +167,35 @@ export default defineSchema({
         updatedAt: v.number(),
     })
         .index('by_order', ['orderId'])
+        .index('by_status', ['status']),
+
+    deliveryTasks: defineTable({
+        orderId: v.id('orders'),
+        driverId: v.optional(v.id('users')),
+        status: deliveryTaskStatusValidator,
+        deliverySlotId: v.id('timeSlots'),
+        addressSnapshot: v.object({
+            label: v.string(),
+            contactName: v.string(),
+            contactPhone: v.string(),
+            addressLine1: v.string(),
+            addressLine2: v.optional(v.string()),
+            buildingName: v.string(),
+            towerBlock: v.optional(v.string()),
+            unitNumber: v.optional(v.string()),
+            lobbyOrSecurityNote: v.string(),
+        }),
+        proofFileIds: v.array(v.id('_storage')),
+        issueNote: v.optional(v.string()),
+        issueEvidenceFileIds: v.optional(v.array(v.id('_storage'))),
+        completionNote: v.optional(v.string()),
+        createdAt: v.number(),
+        startedAt: v.optional(v.number()),
+        issueReportedAt: v.optional(v.number()),
+        completedAt: v.optional(v.number()),
+        updatedAt: v.number(),
+    })
+        .index('by_order', ['orderId'])
+        .index('by_driver', ['driverId'])
         .index('by_status', ['status']),
 });

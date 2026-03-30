@@ -15,6 +15,7 @@ import { z } from "zod";
 import {
   AdminAppShell,
   CustomerAppShell,
+  DriverAppShell,
   WorkerAppShell,
 } from "@/components/app-shell";
 import { NotFoundPage } from "@/pages/not-found-page";
@@ -25,6 +26,8 @@ import { CustomerOrderDetailPage } from "@/pages/customer-order-detail-page";
 import { CustomerOrdersPage } from "@/pages/customer-orders-page";
 import { CustomerPaymentsPage } from "@/pages/customer-payments-page";
 import { CustomerProfilePage } from "@/pages/customer-profile-page";
+import { DriverQueuePage } from "@/pages/driver-queue-page";
+import { DriverTaskDetailPage } from "@/pages/driver-task-detail-page";
 import { SignInPage } from "@/pages/sign-in-page";
 import { SignUpPage } from "@/pages/sign-up-page";
 import { WorkerOrderDetailPage } from "@/pages/worker-order-detail-page";
@@ -176,6 +179,33 @@ const workerOrderDetailRoute = createRoute({
   component: WorkerOrderDetailPage,
 });
 
+const driverRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/driver",
+  beforeLoad: ({ context }) => ensureRoleSession(context.auth, "driver"),
+  component: DriverAppShell,
+});
+
+const driverIndexRoute = createRoute({
+  getParentRoute: () => driverRoute,
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: "/driver/queue" });
+  },
+});
+
+const driverQueueRoute = createRoute({
+  getParentRoute: () => driverRoute,
+  path: "/queue",
+  component: DriverQueuePage,
+});
+
+const driverTaskDetailRoute = createRoute({
+  getParentRoute: () => driverRoute,
+  path: "/tasks/$taskId",
+  component: DriverTaskDetailPage,
+});
+
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
@@ -220,6 +250,7 @@ const routeTree = rootRoute.addChildren([
     customerOrderDetailRoute,
   ]),
   workerRoute.addChildren([workerIndexRoute, workerQueueRoute, workerOrderDetailRoute]),
+  driverRoute.addChildren([driverIndexRoute, driverQueueRoute, driverTaskDetailRoute]),
   adminRoute.addChildren([adminIndexRoute, adminOrdersRoute, adminOrderDetailRoute]),
 ]);
 

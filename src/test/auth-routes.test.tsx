@@ -7,10 +7,16 @@ vi.mock("@clerk/clerk-react", () => ({
   SignUp: () => <div data-testid="clerk-sign-up">Mock Clerk Sign Up</div>,
 }));
 
+vi.mock("convex/react", () => ({
+  useAction: vi.fn(),
+  useMutation: vi.fn(),
+  useQuery: () => [],
+}));
+
 async function renderRoute(
   path: string,
   userId: string | null = null,
-  role: "customer" | "worker" | "admin" | null = null,
+  role: "customer" | "worker" | "driver" | "admin" | null = null,
 ) {
   const router = createTestRouter(path);
 

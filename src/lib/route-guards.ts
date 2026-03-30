@@ -15,7 +15,7 @@ export function getDefaultRouteForRole(role: AppRole) {
     case "admin":
       return "/admin/orders";
     case "driver":
-      return "/sign-in";
+      return "/driver/queue";
     case "customer":
     default:
       return "/customer/orders";

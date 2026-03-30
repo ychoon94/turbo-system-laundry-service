@@ -3,6 +3,8 @@ import { expect, test } from "@playwright/test";
 const testEmail =
   process.env.PLAYWRIGHT_TEST_EMAIL ?? "testuser123@gmail.com";
 const testPassword = process.env.PLAYWRIGHT_TEST_PASSWORD;
+const driverEmail = process.env.PLAYWRIGHT_DRIVER_TEST_EMAIL;
+const driverPassword = process.env.PLAYWRIGHT_DRIVER_TEST_PASSWORD;
 
 test("direct nested sign-in path renders Clerk UI instead of the app 404", async ({
   page,
@@ -48,6 +50,26 @@ test("credential flow stays inside Clerk auth and never falls into app not-found
   await expect(
     page.getByRole("heading", {
       name: "Every Stripe-backed checkout, grounded in order history.",
+    }),
+  ).toBeVisible();
+});
+
+test("driver credential flow lands in the final-mile queue", async ({ page }) => {
+  test.skip(
+    !driverEmail || !driverPassword,
+    "PLAYWRIGHT_DRIVER_TEST_EMAIL and PLAYWRIGHT_DRIVER_TEST_PASSWORD are required for the live driver auth flow.",
+  );
+
+  await page.goto("/sign-in");
+
+  await page.getByLabel("Email address").fill(driverEmail!);
+  await page.locator('input[name="password"]').fill(driverPassword!);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+
+  await expect.poll(async () => page.url()).toContain("/driver/queue");
+  await expect(
+    page.getByRole("heading", {
+      name: "Final-mile tasks that are assigned to you right now.",
     }),
   ).toBeVisible();
 });

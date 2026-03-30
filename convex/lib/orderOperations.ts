@@ -12,7 +12,13 @@ export const workerQueueStatuses = [
   "drying",
   "folding",
   "issue_hold",
+] as const;
+
+export const operationalStatuses = [
+  ...workerQueueStatuses,
   "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
 ] as const;
 
 export const operationalProgression = {
@@ -21,6 +27,11 @@ export const operationalProgression = {
   washing: "drying",
   drying: "folding",
   folding: "ready_for_delivery",
+} as const;
+
+export const deliveryProgression = {
+  ready_for_delivery: "out_for_delivery",
+  out_for_delivery: "delivered",
 } as const;
 
 export const issueHoldSourceStatuses = [
@@ -44,6 +55,15 @@ export function isOperationallyReady(order: OrderDoc) {
 export function isOperationallyAccessible(order: OrderDoc) {
   return (
     isOperationallyReady(order) &&
+    operationalStatuses.includes(
+      order.currentStatus as (typeof operationalStatuses)[number],
+    )
+  );
+}
+
+export function isWorkerQueueAccessible(order: OrderDoc) {
+  return (
+    isOperationallyReady(order) &&
     workerQueueStatuses.includes(
       order.currentStatus as (typeof workerQueueStatuses)[number],
     )
@@ -51,7 +71,14 @@ export function isOperationallyAccessible(order: OrderDoc) {
 }
 
 export function canAssignWorker(order: OrderDoc) {
-  return isOperationallyAccessible(order);
+  return isWorkerQueueAccessible(order);
+}
+
+export function canAssignDriver(order: OrderDoc) {
+  return (
+    isOperationallyReady(order) &&
+    order.currentStatus === "ready_for_delivery"
+  );
 }
 
 export function isWorkerQueueStatus(status: string) {
@@ -65,6 +92,10 @@ export function getNextOperationalStatus(currentStatus: string) {
 }
 
 export const getExpectedNextOperationalStatus = getNextOperationalStatus;
+
+export function getNextDeliveryOrderStatus(currentStatus: string) {
+  return deliveryProgression[currentStatus as keyof typeof deliveryProgression];
+}
 
 export function canEnterIssueHold(currentStatus: string) {
   return issueHoldSourceStatuses.includes(

@@ -210,6 +210,14 @@ export function AdminOrdersPage() {
                     {order.customer.email ? ` · ${order.customer.email}` : ""}
                     <br />
                     Drop-off: {formatSlotLabel(order.dropoffSlot)}
+                    <br />
+                    Delivery:{" "}
+                    <span className="font-medium text-foreground">
+                      {order.assignedDriver?.fullName ?? "Unassigned"}
+                    </span>
+                    {order.deliveryTaskStatus
+                      ? ` · ${order.deliveryTaskStatus.replaceAll("_", " ")}`
+                      : ""}
                   </p>
                 </div>
 

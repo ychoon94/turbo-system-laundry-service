@@ -22,8 +22,8 @@ export function SignUpPage() {
           body: "Every available slot is measured in load units so pricing and scheduling stay aligned.",
         },
         {
-          title: "Customer-only scope",
-          body: "Admin, worker, and driver interfaces are intentionally deferred while the customer checkout baseline stabilizes.",
+          title: "Staff provisioning",
+          body: "Admin, worker, and driver accounts are still provisioned manually in Clerk and then mirrored into Convex with the matching role.",
         },
       ]}
       formFirst

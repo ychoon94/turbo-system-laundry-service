@@ -2,6 +2,34 @@
 
 ## Current Task
 
+- [completed] Implement phase 4 driver delivery workflows: delivery task model, driver routes/UI, admin delivery assignment, customer delivery status visibility, docs refresh, and verification.
+
+## Steps
+
+- [completed] Re-check the current worker/admin/customer order flow and extend the domain model for delivery tasks plus delivery statuses without widening scope beyond final-mile delivery.
+- [completed] Implement Convex delivery schema/helpers/functions for task creation, driver assignment, driver queue/detail/actions, and admin delivery detail visibility.
+- [completed] Update the React app for driver routing/shell/pages, admin delivery controls, and customer delivery-state visibility.
+- [completed] Refresh the shipped-scope docs and test credentials to reflect the real current implementation plus manual driver provisioning.
+- [completed] Run verification: targeted/new tests, full `npm test`, `npm run lint`, `npm run build`, and feasible Playwright coverage.
+
+## Acceptance Criteria
+
+- Orders can move from `ready_for_delivery` to `out_for_delivery` to `delivered` with backend-enforced role and state checks.
+- A `deliveryTasks` record exists for delivery-ready orders, admins can assign/reassign active drivers, and drivers can only access assigned tasks.
+- Drivers can start delivery, upload proof, complete delivery, and report a delivery issue that returns the order to `ready_for_delivery`.
+- Admin detail surfaces driver assignment plus delivery evidence/status, and customer order detail reflects the new delivery states.
+- Docs and credentials clearly state the current shipped scope and the manual driver provisioning requirement.
+
+## Results
+
+- Added `deliveryTasks` plus new order states `out_for_delivery` and `delivered`, then wired automatic task creation when orders first become `ready_for_delivery`.
+- Added `convex/drivers.ts` for driver assignment, driver queue/detail reads, proof upload URL generation, and delivery lifecycle mutations.
+- Added `/driver/queue` and `/driver/tasks/$taskId`, updated role routing/shell copy, extended admin detail/board for delivery assignment and evidence visibility, and updated customer order detail to explain delivery-stage statuses.
+- Refreshed `README.md`, `docs/phase-1-implementation-notes.md`, `test-credential.md`, and the auth Playwright spec so the shipped scope and manual driver provisioning rules match the implementation.
+- Verification passed with `npm run codegen`, `npm test`, `npm run lint`, `npm run build`, and `npm run test:e2e -- e2e/auth-routes.spec.ts` using the existing customer credential flow; the new driver auth Playwright check is present and skipped until driver env creds are provisioned.
+
+## Current Task
+
 - [completed] Fix the accepted review findings for issue-hold creation safety and admin-order detail scope, then verify with focused tests.
 
 ## Steps

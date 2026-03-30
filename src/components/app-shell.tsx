@@ -24,6 +24,8 @@ const customerLinks: ShellLink[] = [
 
 const workerLinks: ShellLink[] = [{ to: "/worker/queue", label: "Queue" }];
 
+const driverLinks: ShellLink[] = [{ to: "/driver/queue", label: "Queue" }];
+
 const adminLinks: ShellLink[] = [{ to: "/admin/orders", label: "Orders" }];
 
 export function CustomerAppShell() {
@@ -55,6 +57,17 @@ export function AdminAppShell() {
       suiteLabel="Admin operations"
       description="Live operational monitor for worker assignment, issue resolution, and the paid-order pipeline after checkout."
       links={adminLinks}
+    />
+  );
+}
+
+export function DriverAppShell() {
+  return (
+    <AppShell
+      homeTo="/driver/queue"
+      suiteLabel="Driver delivery"
+      description="Final-mile queue for address access notes, proof capture, and delivery issue recovery without the in-shop processing controls."
+      links={driverLinks}
     />
   );
 }
@@ -111,6 +124,8 @@ function AppShell({ homeTo, suiteLabel, description, links }: AppShellProps) {
                 <div className="hidden items-center gap-2 text-xs uppercase tracking-[0.22em] text-muted-foreground sm:flex">
                   {suiteLabel === "Admin operations" ? (
                     <BriefcaseBusiness className="size-3.5" />
+                  ) : suiteLabel === "Driver delivery" ? (
+                    <Truck className="size-3.5" />
                   ) : suiteLabel === "Worker queue" ? (
                     <Truck className="size-3.5" />
                   ) : (

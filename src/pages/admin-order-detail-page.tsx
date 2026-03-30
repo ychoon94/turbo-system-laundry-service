@@ -32,12 +32,15 @@ export function AdminOrderDetailPage() {
     orderId: params.orderId as Id<"orders">,
   });
   const assignableWorkers = useQuery(api.workers.listAssignableWorkers, {});
+  const assignableDrivers = useQuery(api.drivers.listAssignableDrivers, {});
   const openIssues = useQuery(api.issues.listOpenIssues, {
     orderId: params.orderId as Id<"orders">,
   });
   const assignOrderToWorker = useMutation(api.workers.assignOrderToWorker);
+  const assignOrderToDriver = useMutation(api.drivers.assignOrderToDriver);
   const resumeFromIssueHold = useMutation(api.orders.resumeFromIssueHold);
   const [selectedWorkerId, setSelectedWorkerId] = useState<Id<"users"> | "">("");
+  const [selectedDriverId, setSelectedDriverId] = useState<Id<"users"> | "">("");
   const [selectedIssueId, setSelectedIssueId] = useState<Id<"issueReports"> | "">("");
   const [nextStatus, setNextStatus] = useState<(typeof RESUME_OPTIONS)[number]["value"]>("washing");
   const [resolutionNote, setResolutionNote] = useState("");
@@ -45,7 +48,12 @@ export function AdminOrderDetailPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  if (order === undefined || assignableWorkers === undefined || openIssues === undefined) {
+  if (
+    order === undefined ||
+    assignableWorkers === undefined ||
+    assignableDrivers === undefined ||
+    openIssues === undefined
+  ) {
     return (
       <div className="grid gap-6">
         <div className="h-52 animate-pulse rounded-[2rem] bg-card/70" />
@@ -96,6 +104,10 @@ export function AdminOrderDetailPage() {
             <InfoBlock
               label="Assigned worker"
               value={order.assignedWorker?.fullName ?? "Unassigned"}
+            />
+            <InfoBlock
+              label="Assigned driver"
+              value={order.deliveryTask?.assignedDriver?.fullName ?? "Unassigned"}
             />
           </div>
 
@@ -202,6 +214,128 @@ export function AdminOrderDetailPage() {
                 {isPending ? "Saving assignment..." : "Assign worker"}
               </Button>
             </div>
+          </section>
+
+          <section className="rounded-[1.75rem] border border-border bg-background/70 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Delivery assignment
+            </p>
+            <h2 className="mt-2 text-3xl text-foreground">Hand off the final mile</h2>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground">
+              {order.currentStatus === "ready_for_delivery"
+                ? "Assign or reassign the driver now that the order has cleared in-shop processing."
+                : order.currentStatus === "out_for_delivery"
+                  ? "The driver already has this stop live on the route. Reassignment is locked until it returns to ready."
+                  : order.currentStatus === "delivered"
+                    ? "This delivery is already complete."
+                    : "The delivery task becomes actionable once the order reaches ready for delivery."}
+            </p>
+
+            <div className="mt-4 grid gap-3">
+              <Select
+                value={selectedDriverId || order.deliveryTask?.assignedDriver?.userId || ""}
+                onChange={(event) =>
+                  setSelectedDriverId(event.target.value as Id<"users"> | "")
+                }
+              >
+                <option value="">Choose a driver</option>
+                {assignableDrivers.map((driver) => (
+                  <option key={driver.userId} value={driver.userId}>
+                    {driver.fullName}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                disabled={isPending || !selectedDriverId || order.currentStatus !== "ready_for_delivery"}
+                onClick={() => {
+                  if (!selectedDriverId) {
+                    return;
+                  }
+
+                  setError(null);
+                  setMessage(null);
+                  startTransition(async () => {
+                    try {
+                      await assignOrderToDriver({
+                        orderId: order._id,
+                        driverId: selectedDriverId,
+                      });
+                      setMessage("Driver assignment updated.");
+                    } catch (assignmentError) {
+                      setError(
+                        assignmentError instanceof Error
+                          ? assignmentError.message
+                          : "Unable to assign the driver.",
+                      );
+                    }
+                  });
+                }}
+              >
+                {isPending ? "Saving delivery..." : "Assign driver"}
+              </Button>
+            </div>
+
+            {order.deliveryTask ? (
+              <div className="mt-5 space-y-3 rounded-[1.4rem] border border-border bg-card/75 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-secondary-foreground">
+                    {formatStatusLabel(order.deliveryTask.status)}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {order.deliveryTask.assignedDriver?.fullName ?? "No driver assigned"}
+                  </span>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Delivery slot: {formatSlotLabel(order.deliveryTask.deliverySlot)}
+                </p>
+                {order.deliveryTask.issueNote ? (
+                  <p className="text-sm leading-6 text-foreground">
+                    Latest issue: {order.deliveryTask.issueNote}
+                  </p>
+                ) : null}
+                {order.deliveryTask.completionNote ? (
+                  <p className="text-sm leading-6 text-foreground">
+                    Completion note: {order.deliveryTask.completionNote}
+                  </p>
+                ) : null}
+                {order.deliveryTask.proofFiles.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {order.deliveryTask.proofFiles.map((file) =>
+                      file.url ? (
+                        <a
+                          key={file.storageId}
+                          href={file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        >
+                          Delivery proof
+                          <ExternalLink className="size-4" />
+                        </a>
+                      ) : null,
+                    )}
+                  </div>
+                ) : null}
+                {order.deliveryTask.issueEvidenceFiles.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {order.deliveryTask.issueEvidenceFiles.map((file) =>
+                      file.url ? (
+                        <a
+                          key={file.storageId}
+                          href={file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        >
+                          Delivery issue evidence
+                          <ExternalLink className="size-4" />
+                        </a>
+                      ) : null,
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-[1.75rem] border border-border bg-background/70 p-5">

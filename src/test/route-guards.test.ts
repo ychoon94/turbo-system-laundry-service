@@ -29,6 +29,7 @@ describe("ensureCustomerSession", () => {
   it("maps roles to their default suite routes", () => {
     expect(getDefaultRouteForRole("customer")).toBe("/customer/orders");
     expect(getDefaultRouteForRole("worker")).toBe("/worker/queue");
+    expect(getDefaultRouteForRole("driver")).toBe("/driver/queue");
     expect(getDefaultRouteForRole("admin")).toBe("/admin/orders");
   });
 });

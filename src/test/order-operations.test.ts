@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAssignDriver,
   canAssignWorker,
   canEnterIssueHold,
   canResumeFromIssueHold,
+  getNextDeliveryOrderStatus,
   getNextOperationalStatus,
   isWorkerQueueStatus,
 } from "../../convex/lib/orderOperations";
@@ -15,9 +17,11 @@ describe("orderOperations", () => {
     expect(getNextOperationalStatus("drying")).toBe("folding");
     expect(getNextOperationalStatus("folding")).toBe("ready_for_delivery");
     expect(getNextOperationalStatus("ready_for_delivery")).toBeUndefined();
+    expect(getNextDeliveryOrderStatus("ready_for_delivery")).toBe("out_for_delivery");
+    expect(getNextDeliveryOrderStatus("out_for_delivery")).toBe("delivered");
   });
 
-  it("only treats paid operational orders as assignable worker work", () => {
+  it("separates worker assignment from driver assignment", () => {
     expect(
       canAssignWorker({
         currentStatus: "awaiting_dropoff",
@@ -41,6 +45,22 @@ describe("orderOperations", () => {
         assignedWorkerId: undefined,
       }),
     ).toBe(false);
+
+    expect(
+      canAssignDriver({
+        currentStatus: "ready_for_delivery",
+        paymentStatus: "paid",
+        assignedWorkerId: undefined,
+      }),
+    ).toBe(true);
+
+    expect(
+      canAssignDriver({
+        currentStatus: "out_for_delivery",
+        paymentStatus: "paid",
+        assignedWorkerId: undefined,
+      }),
+    ).toBe(false);
   });
 
   it("limits issue hold entry and resume states to the operational subset", () => {
@@ -55,7 +75,7 @@ describe("orderOperations", () => {
 
   it("marks the worker queue statuses explicitly", () => {
     expect(isWorkerQueueStatus("issue_hold")).toBe(true);
-    expect(isWorkerQueueStatus("ready_for_delivery")).toBe(true);
+    expect(isWorkerQueueStatus("ready_for_delivery")).toBe(false);
     expect(isWorkerQueueStatus("draft")).toBe(false);
   });
 });

@@ -11,9 +11,11 @@
 import type * as addresses from "../addresses.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as drivers from "../drivers.js";
 import type * as http from "../http.js";
 import type * as issues from "../issues.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_deliveryTasks from "../lib/deliveryTasks.js";
 import type * as lib_domain from "../lib/domain.js";
 import type * as lib_orderHistory from "../lib/orderHistory.js";
 import type * as lib_orderOperations from "../lib/orderOperations.js";
@@ -36,9 +38,11 @@ declare const fullApi: ApiFromModules<{
   addresses: typeof addresses;
   auth: typeof auth;
   crons: typeof crons;
+  drivers: typeof drivers;
   http: typeof http;
   issues: typeof issues;
   "lib/auth": typeof lib_auth;
+  "lib/deliveryTasks": typeof lib_deliveryTasks;
   "lib/domain": typeof lib_domain;
   "lib/orderHistory": typeof lib_orderHistory;
   "lib/orderOperations": typeof lib_orderOperations;
